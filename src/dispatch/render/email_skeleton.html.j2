@@ -1,0 +1,137 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+{#- ---------------------------------------------------------------- #}
+{#- The shared Outlook-safe frame every Dispatch email sits in.       #}
+{#-                                                                   #}
+{#- A template layout extends this file and fills the `header` block. #}
+{#- The `sections` block loops over the sections and includes each   #}
+{#- partial; a layout may override it. Each partial renders one or    #}
+{#- more <tr> rows of the 640px container table.                      #}
+{#-                                                                   #}
+{#- Rules: tables with role="presentation", inline styles only (the   #}
+{#- <style> block is inlined at render time), bgcolor beside every    #}
+{#- CSS background, no margins on block elements (use cell padding),  #}
+{#- web-safe fonts, no SVG, no flexbox or grid.                       #}
+{#- ---------------------------------------------------------------- #}
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="x-apple-disable-message-reformatting" />
+<meta name="color-scheme" content="light" />
+<meta name="supported-color-schemes" content="light" />
+<title>{{ dispatch.subject }}</title>
+<!--[if mso]>
+<xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml>
+<style type="text/css">table, td, th, p, a, span { font-family: Arial, Helvetica, sans-serif !important; }</style>
+<![endif]-->
+<style type="text/css">
+  body { margin: 0; padding: 0; width: 100%; background-color: #f4f2ee; }
+  table { border-collapse: collapse; }
+  img { border: 0; outline: none; text-decoration: none; display: block; height: auto; }
+  a { color: #002147; }
+  .body-text { font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 20px; color: #1a1a1a; }
+  .note-text { font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 18px; color: #666666; }
+  .section-heading { font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 18px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; color: #002147; }
+  @media screen and (max-width: 640px) {
+    .container { width: 100% !important; }
+    .stack-column { display: block !important; width: 100% !important; max-width: 100% !important; }
+    .stack-image { width: 100% !important; max-width: 290px !important; }
+    .mobile-padding { padding-left: 16px !important; padding-right: 16px !important; }
+  }
+  {% block extra_styles %}{% endblock %}
+</style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f2ee;" bgcolor="#f4f2ee">
+
+{#- Hidden preview text shown beside the subject in the inbox #}
+<div style="display: none; font-size: 1px; line-height: 1px; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; mso-hide: all;">{% block preheader %}{{ dispatch.window_sentence }}{% endblock %}</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f2ee" style="background-color: #f4f2ee;">
+<tr>
+<td align="center" style="padding: 16px 0;">
+
+<!--[if mso]>
+<table role="presentation" width="640" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td>
+<![endif]-->
+
+<table role="presentation" class="container" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="max-width: 640px; background-color: #ffffff;">
+
+{#- ---------------------------------------------------------------- #}
+{#- View in browser                                                   #}
+{#- ---------------------------------------------------------------- #}
+{%- if dispatch.mode == 'email' %}
+<tr>
+<td class="mobile-padding note-text" align="center" bgcolor="#f4f2ee" style="padding: 8px 24px; background-color: #f4f2ee; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 16px; color: #666666;">
+Not displaying properly? <a href="{{ dispatch.browser_url }}" style="color: #002147; text-decoration: underline;">View it in your browser.</a>
+</td>
+</tr>
+{%- endif %}
+
+{#- ---------------------------------------------------------------- #}
+{#- Header                                                            #}
+{#- ---------------------------------------------------------------- #}
+{% block header %}
+<tr>
+<td class="mobile-padding" style="padding: 24px 24px 12px 24px; border-bottom: 4px solid #002147;">
+<p style="margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 16px; letter-spacing: 3px; text-transform: uppercase; font-weight: bold; color: #002147;">AdVance Dispatch</p>
+<p style="margin: 0; padding-top: 4px; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; line-height: 30px; font-weight: bold; color: #111111;">{{ dispatch.template_name }}</p>
+</td>
+</tr>
+{% endblock %}
+
+{#- ---------------------------------------------------------------- #}
+{#- Test banner and data callouts                                     #}
+{#- ---------------------------------------------------------------- #}
+{%- if dispatch.is_test %}
+<tr>
+<td class="mobile-padding" bgcolor="#fff8e6" style="padding: 10px 24px; background-color: #fff8e6; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 18px; color: #4a3d05;">
+Test send. Only you received this copy.
+</td>
+</tr>
+{%- endif %}
+{%- for callout in dispatch.callouts %}
+<tr>
+<td class="mobile-padding" style="padding: 12px 24px 0 24px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#fff8e6" style="padding: 10px 14px; background-color: #fff8e6; border-left: 4px solid #b7950b; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 18px; color: #4a3d05;">{{ callout }}</td>
+</tr>
+</table>
+</td>
+</tr>
+{%- endfor %}
+
+{#- ---------------------------------------------------------------- #}
+{#- Sections                                                          #}
+{#- ---------------------------------------------------------------- #}
+{% block sections %}
+{%- for section in sections %}
+{% include section.partial %}
+{%- endfor %}
+{% endblock %}
+
+{#- ---------------------------------------------------------------- #}
+{#- Footer                                                            #}
+{#- ---------------------------------------------------------------- #}
+{% block footer %}
+<tr>
+<td class="mobile-padding" style="padding: 20px 24px 24px 24px; border-top: 1px solid #dddddd; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 17px; color: #888888;">
+{{ dispatch.data_source_sentence }}<br />
+{{ dispatch.window_sentence }}.<br />
+To stop receiving these emails, contact <a href="mailto:{{ dispatch.contact_email }}" style="color: #888888; text-decoration: underline;">{{ dispatch.contact_email }}</a>.
+</td>
+</tr>
+{% endblock %}
+
+</table>
+
+<!--[if mso]>
+</td></tr></table>
+<![endif]-->
+
+</td>
+</tr>
+</table>
+</body>
+</html>

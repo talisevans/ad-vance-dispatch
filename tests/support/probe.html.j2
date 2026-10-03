@@ -1,0 +1,10 @@
+<tr>
+<td class="mobile-padding" style="padding: 20px 24px;">
+<p class="section-heading" style="margin: 0;">Probe</p>
+<p class="body-text" style="margin: 0; padding-top: 8px;">Total {{ section.variables.total | money }}</p>
+<img src="{{ section.images.bar.src }}" width="{{ section.images.bar.width }}" height="{{ section.images.bar.height }}" alt="{{ section.images.bar.alt }}" class="stack-image" />
+{%- for note in section.notes %}
+<p class="note-text" style="margin: 0; padding-top: 6px;">{{ note }}</p>
+{%- endfor %}
+</td>
+</tr>

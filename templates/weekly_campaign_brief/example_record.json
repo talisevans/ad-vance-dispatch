@@ -1,0 +1,21 @@
+{
+  "id": "example_vic",
+  "name": "VIC election weekly brief",
+  "template_id": "weekly_campaign_brief",
+  "template_schema_version": 1,
+  "property_values": {
+    "start_date": "2026-07-01",
+    "end_date": "2026-11-28",
+    "jurisdiction": "state",
+    "state": "VIC"
+  },
+  "recipients": ["reader@example.test"],
+  "contact_email": null,
+  "schedule": { "preset": "weekly", "days": ["mon"], "time": "09:00" },
+  "cron": "0 9 * * 1",
+  "timezone": "Australia/Melbourne",
+  "start_delivery": "2026-10-01",
+  "end_delivery": "2026-11-28",
+  "status": "active",
+  "created_by": "admin@example.test"
+}

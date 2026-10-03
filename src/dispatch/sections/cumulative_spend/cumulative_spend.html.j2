@@ -1,0 +1,54 @@
+{#- ---------------------------------------------------------------- #}
+{#- Cumulative spend: two columns (biases, affiliations), each a line  #}
+{#- chart with a table of totals under it. Side by side at 640px,      #}
+{#- stacked on clients that honour media queries.                     #}
+{#- Renders one <tr> of the 640px container table.                    #}
+{#- ---------------------------------------------------------------- #}
+<tr>
+<td class="mobile-padding" style="padding: 28px 24px 0 24px;">
+
+{#- Section heading #}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td class="section-heading" style="padding: 0 0 8px 0; border-bottom: 1px solid #dddddd;">{{ section.variables.heading }}</td>
+</tr>
+</table>
+
+{#- The two columns #}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+{%- for column in section.variables.columns %}
+{%- set chart = section.images[column.image_name] %}
+<td class="stack-column" width="50%" valign="top" style="width: 50%; padding: 14px {% if loop.first %}6px 0 0{% else %}0 0 6px{% endif %};">
+
+{#- Column title #}
+<p style="margin: 0; padding: 0 0 6px 0; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 15px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; color: #777777;">{{ column.title }}</p>
+
+{#- The chart #}
+<img class="stack-image" src="{{ chart.src }}" width="{{ chart.width }}" height="{{ chart.height }}" alt="{{ chart.alt }}" style="display: block; border: 0; width: 100%; max-width: {{ chart.width }}px; height: auto;" />
+
+{#- Totals, highest first #}
+<table role="presentation" width="{{ chart.width }}" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: {{ chart.width }}px;">
+{%- for row in column.rows %}
+<tr>
+<td width="11" style="padding: 4px 8px 4px 0;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="10" height="10" bgcolor="{{ row.colour }}" style="width: 10px; height: 10px; background-color: {{ row.colour }}; font-size: 0; line-height: 0;">&nbsp;</td></tr></table>
+</td>
+<td style="padding: 4px 8px 4px 0; border-bottom: 1px solid #eeeeee; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 16px; color: #1a1a1a;">{{ row.name }}</td>
+<td align="right" style="padding: 4px 0; border-bottom: 1px solid #eeeeee; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 16px; font-weight: bold; color: #1a1a1a;">{{ row.total | money }}</td>
+</tr>
+{%- endfor %}
+</table>
+
+</td>
+{%- endfor %}
+</tr>
+</table>
+
+{#- Notes #}
+{%- for note in section.notes %}
+<p class="note-text" style="margin: 0; padding-top: {% if loop.first %}12{% else %}4{% endif %}px;">{{ note }}</p>
+{%- endfor %}
+
+</td>
+</tr>

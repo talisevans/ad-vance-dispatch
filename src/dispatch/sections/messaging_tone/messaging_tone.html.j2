@@ -1,0 +1,105 @@
+{#- ---------------------------------------------------------------- #}
+{#- Messaging and tone: a two-column grid of cards. Each card has its  #}
+{#- spend, a tone bar and issue bars, all drawn as table cells.       #}
+{#- Cards sit side by side at 640px and stack on clients that honour  #}
+{#- media queries. Renders one <tr> of the 640px container table.     #}
+{#- ---------------------------------------------------------------- #}
+<tr>
+<td class="mobile-padding" style="padding: 28px 24px 0 24px;">
+
+{#- Section heading #}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td class="section-heading" style="padding: 0 0 8px 0; border-bottom: 1px solid #dddddd;">{{ section.variables.heading }}</td>
+</tr>
+</table>
+
+{#- The grid, two cards to a row #}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+{%- for pair in section.variables.card_rows %}
+<tr>
+{%- for card in pair %}
+{%- if card.is_empty %}{% set ink = '#999999' %}{% else %}{% set ink = '#1a1a1a' %}{% endif %}
+<td class="stack-column" width="50%" valign="top" style="width: 50%; padding: 14px {% if loop.first %}7px 0 0{% else %}0 0 7px{% endif %};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid #e2e2e2;">
+<tr>
+<td style="padding: 14px 16px 12px 16px; font-family: Arial, Helvetica, sans-serif;">
+
+{#- Card head: colour dot, label and spend #}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td width="12" valign="middle" style="padding: 0 8px 0 0;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="12" height="12" bgcolor="{{ card.colour }}" style="width: 12px; height: 12px; background-color: {{ card.colour }}; font-size: 0; line-height: 0;">&nbsp;</td></tr></table>
+</td>
+<td valign="middle" style="font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 20px; font-weight: bold; color: {{ ink }};">{{ card.label }}</td>
+<td align="right" valign="middle" style="font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 20px; font-weight: bold; color: {{ ink }};">{{ card.spend | money }}</td>
+</tr>
+</table>
+
+{%- if card.is_empty %}
+{#- A card with no spend says so #}
+<p style="margin: 0; padding-top: 10px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 17px; color: #999999;">{{ card.empty_message }}</p>
+{%- else %}
+
+{#- Tone of ads, by spend #}
+<p style="margin: 0; padding: 12px 0 5px 0; font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 14px; letter-spacing: 1px; text-transform: uppercase; color: #777777;">Tone of ads (by spend)</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+{%- for tone in card.tones %}
+{%- if tone.width > 0 %}
+<td width="{{ tone.width }}%" height="14" bgcolor="{{ tone.colour }}" style="width: {{ tone.width }}%; height: 14px; background-color: {{ tone.colour }}; font-size: 0; line-height: 0;">&nbsp;</td>
+{%- endif %}
+{%- endfor %}
+</tr>
+</table>
+<p style="margin: 0; padding-top: 6px; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 16px; color: #333333;">
+{%- for tone in card.tones %}
+<span style="color: {{ tone.colour }};">&#9632;</span>&nbsp;{{ tone.name }}&nbsp;{{ tone.share | percent }}{% if not loop.last %}&nbsp;&nbsp; {% endif %}
+{%- endfor %}
+</p>
+
+{#- Top issues, by spend #}
+{%- if card.themes %}
+<p style="margin: 0; padding: 12px 0 4px 0; font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 14px; letter-spacing: 1px; text-transform: uppercase; color: #777777;">Top issues by spend</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+{%- for theme in card.themes %}
+<tr>
+<td width="40%" style="width: 40%; padding: 3px 8px 3px 0; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 16px; color: #1a1a1a;">{{ theme.name }}</td>
+<td valign="middle" style="padding: 3px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td width="{{ theme.width }}%" height="7" bgcolor="{{ card.colour }}" style="width: {{ theme.width }}%; height: 7px; background-color: {{ card.colour }}; font-size: 0; line-height: 0;">&nbsp;</td>
+{%- if theme.width < 100 %}
+<td height="7" bgcolor="#eeeeee" style="height: 7px; background-color: #eeeeee; font-size: 0; line-height: 0;">&nbsp;</td>
+{%- endif %}
+</tr>
+</table>
+</td>
+<td width="64" align="right" style="width: 64px; padding: 3px 0 3px 8px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 16px; color: #444444;">{{ theme.spend | money }}</td>
+</tr>
+{%- endfor %}
+</table>
+{%- endif %}
+
+{%- endif %}
+</td>
+</tr>
+</table>
+</td>
+{%- endfor %}
+{%- if pair | length == 1 %}
+{#- An odd last card leaves its partner cell empty #}
+<td class="stack-column" width="50%" style="width: 50%;">&nbsp;</td>
+{%- endif %}
+</tr>
+{%- endfor %}
+</table>
+
+{#- Window and notes #}
+<p class="note-text" style="margin: 0; padding-top: 12px;">{{ section.variables.window_sentence }}.</p>
+{%- for note in section.notes %}
+<p class="note-text" style="margin: 0; padding-top: 4px;">{{ note }}</p>
+{%- endfor %}
+
+</td>
+</tr>

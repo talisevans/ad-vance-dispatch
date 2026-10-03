@@ -1,0 +1,65 @@
+{% extends "email_skeleton.html.j2" %}
+{#- ---------------------------------------------------------------- #}
+{#- Weekly Campaign Brief layout.                                     #}
+{#-                                                                   #}
+{#- The masthead (brand, serif title, week and source), the section   #}
+{#- loop and the footer, inside the shared Outlook-safe skeleton.     #}
+{#- Every figure comes from a section or from `dispatch`; nothing is  #}
+{#- written into this file. Table markup only: no SVG, flexbox or     #}
+{#- grid. Navy #002147 rules, a serif title and an Arial body.        #}
+{#- ---------------------------------------------------------------- #}
+
+{#- ---------------------------------------------------------------- #}
+{#- Masthead                                                          #}
+{#- ---------------------------------------------------------------- #}
+{% block header %}
+<tr>
+<td class="mobile-padding" style="padding: 28px 24px 14px 24px; border-bottom: 4px solid #002147;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+
+{#- Brand and title, on the left #}
+<td class="stack-column" width="62%" valign="bottom" style="width: 62%; padding: 0 12px 0 0;">
+<p style="margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 15px; letter-spacing: 3px; text-transform: uppercase; font-weight: bold; color: #002147;">AdVance {{ dispatch.template_name }}</p>
+<p style="margin: 0; padding-top: 6px; font-family: Georgia, 'Times New Roman', serif; font-size: 26px; line-height: 31px; font-weight: bold; color: #111111;">{{ dispatch.jurisdiction_label }} election</p>
+<p style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 20px; line-height: 26px; font-weight: normal; color: #111111;">Weekly Ad Spend Briefing</p>
+</td>
+
+{#- Week, data date and source, on the right #}
+<td class="stack-column" width="38%" align="right" valign="bottom" style="width: 38%; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 17px; color: #555555; text-align: right;">
+Week of {{ dispatch.window_range }}<br />
+Data to {{ dispatch.as_of_long }}<br />
+Source: AdVance (Meta and Google transparency data)
+</td>
+
+</tr>
+</table>
+</td>
+</tr>
+{% endblock %}
+
+{#- ---------------------------------------------------------------- #}
+{#- Sections, in template order                                       #}
+{#- ---------------------------------------------------------------- #}
+{% block sections %}
+{%- for section in sections %}
+{% include section.partial %}
+{%- endfor %}
+
+{#- Space between the last section and the footer #}
+<tr>
+<td height="28" style="height: 28px; font-size: 0; line-height: 0;">&nbsp;</td>
+</tr>
+{% endblock %}
+
+{#- ---------------------------------------------------------------- #}
+{#- Footer                                                            #}
+{#- ---------------------------------------------------------------- #}
+{% block footer %}
+{{ super() }}
+
+{#- A closing navy rule to match the masthead #}
+<tr>
+<td height="4" bgcolor="#002147" style="height: 4px; background-color: #002147; font-size: 0; line-height: 0;">&nbsp;</td>
+</tr>
+{% endblock %}

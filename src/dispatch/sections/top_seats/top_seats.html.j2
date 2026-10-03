@@ -1,0 +1,92 @@
+{#- ---------------------------------------------------------------- #}
+{#- Top Seats: a ranked table of seats with leader, runner-up and a   #}
+{#- total per window. The Margin column shows only when a seat lookup #}
+{#- exists. Renders one <tr> of the 640px container table.            #}
+{#- ---------------------------------------------------------------- #}
+{%- set header_style = 'padding: 8px 6px; background-color: #002147; font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 14px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; color: #ffffff;' %}
+{%- set cell_style = 'padding: 8px 6px; border-bottom: 1px solid #e5e5e5; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 16px; color: #1a1a1a;' %}
+<tr>
+<td class="mobile-padding" style="padding: 28px 24px 0 24px;">
+
+{#- Section heading #}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td class="section-heading" style="padding: 0 0 8px 0; border-bottom: 1px solid #dddddd;">{{ section.variables.heading }}</td>
+</tr>
+</table>
+
+{%- if section.variables.rows %}
+{#- The seats table #}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td align="left" bgcolor="#002147" style="{{ header_style }}">#</td>
+<td align="left" bgcolor="#002147" style="{{ header_style }}">Seat</td>
+{%- if section.variables.show_margin %}
+<td align="left" bgcolor="#002147" style="{{ header_style }}">Margin</td>
+{%- endif %}
+<td align="left" bgcolor="#002147" style="{{ header_style }}">Leading spender</td>
+<td align="left" bgcolor="#002147" style="{{ header_style }}">Runner-up</td>
+{%- for column in section.variables.window_columns %}
+<td align="right" bgcolor="#002147" style="{{ header_style }}">{{ column.label }}</td>
+{%- endfor %}
+</tr>
+{%- for row in section.variables.rows %}
+{%- if loop.index is even %}{% set row_background = '#f8f7f4' %}{% else %}{% set row_background = '#ffffff' %}{% endif %}
+<tr>
+
+{#- Rank and seat #}
+<td valign="top" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }}; font-weight: bold; color: #002147;">{{ row.rank }}</td>
+<td valign="top" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }};">{{ row.seat }}</td>
+
+{#- Margin, when the seat lookup exists #}
+{%- if section.variables.show_margin %}
+<td valign="top" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }};">{{ row.margin }}</td>
+{%- endif %}
+
+{#- Leader and runner-up #}
+{%- for spender in [row.leader, row.runner_up] %}
+<td valign="top" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }};">
+{%- if spender is none %}
+<span style="color: #999999;">{{ section.variables.no_runner_up }}</span>
+{%- else %}
+<span style="display: inline-block; padding: 1px 6px; background-color: {{ spender.colour }}; color: {{ spender.text_colour }}; font-size: 10px; line-height: 14px; font-weight: bold; letter-spacing: 0.5px;">{{ spender.name }}</span>
+{%- if spender.is_unmapped %}
+<span style="font-size: 10px; line-height: 14px; color: #777777;">&nbsp;{{ section.variables.unmapped_tag }}</span>
+{%- endif %}
+<br /><span style="font-size: 12px; line-height: 16px; font-weight: {% if loop.first %}bold{% else %}normal{% endif %}; color: {% if loop.first %}#1a1a1a{% else %}#777777{% endif %};">{{ spender.spend | money }}</span>
+{%- endif %}
+</td>
+{%- endfor %}
+
+{#- One total per window, with a bar in the leader's colour #}
+{%- for total in row.totals %}
+<td valign="top" align="right" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }}; font-weight: {% if total.is_ranking_window %}bold{% else %}normal{% endif %};">
+{{ total.amount | money }}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+{%- if total.width > 0 %}
+<td width="{{ total.width }}%" height="6" bgcolor="{{ row.bar_colour }}" style="width: {{ total.width }}%; height: 6px; background-color: {{ row.bar_colour }}; font-size: 0; line-height: 0;">&nbsp;</td>
+{%- endif %}
+{%- if total.width < 100 %}
+<td height="6" bgcolor="#eeeeee" style="height: 6px; background-color: #eeeeee; font-size: 0; line-height: 0;">&nbsp;</td>
+{%- endif %}
+</tr>
+</table>
+</td>
+{%- endfor %}
+
+</tr>
+{%- endfor %}
+</table>
+{%- else %}
+<p class="body-text" style="margin: 0; padding-top: 12px; color: #777777;">No seat-level spend in this window.</p>
+{%- endif %}
+
+{#- Window and notes #}
+<p class="note-text" style="margin: 0; padding-top: 12px;">{{ section.variables.window_sentence }}.</p>
+{%- for note in section.notes %}
+<p class="note-text" style="margin: 0; padding-top: 4px;">{{ note }}</p>
+{%- endfor %}
+
+</td>
+</tr>

@@ -1,0 +1,10 @@
+{% extends "email_skeleton.html.j2" %}
+
+{% block header %}
+<tr>
+<td class="mobile-padding" style="padding: 24px 24px 12px 24px; border-bottom: 4px solid #002147;">
+<p style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; line-height: 30px; font-weight: bold; color: #111111;">{{ dispatch.template_name }}</p>
+<p class="note-text" style="margin: 0; padding-top: 4px;">{{ dispatch.jurisdiction_label }}, data to {{ dispatch.as_of_long }}</p>
+</td>
+</tr>
+{% endblock %}

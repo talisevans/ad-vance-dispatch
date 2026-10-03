@@ -1,0 +1,38 @@
+{
+  "id": "weekly_campaign_brief",
+  "schema_version": 1,
+  "name": "Weekly Campaign Brief",
+  "description": "Weekly ad spend briefing for one jurisdiction: bias gauge, cumulative spend, messaging and top seats.",
+  "subject": "{jurisdiction_label} election brief, week to {as_of_long}",
+  "layout_path": "templates/weekly_campaign_brief/layout.html.j2",
+  "required_properties": [
+    { "key": "start_date",   "label": "Data from",    "type": "date" },
+    { "key": "end_date",     "label": "Data to",      "type": "date" },
+    { "key": "jurisdiction", "label": "Jurisdiction", "type": "enum",
+      "options": ["federal", "state"] },
+    { "key": "state",        "label": "State",        "type": "enum",
+      "options": ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"],
+      "required_when": { "jurisdiction": "state" } }
+  ],
+  "globals": {
+    "include": {},
+    "exclude": { "classification": ["government"] }
+  },
+  "sections": [
+    { "id": "statewide_spend", "type": "bias_gauge",
+      "params": { "window_days": 7 } },
+    { "id": "cumulative", "type": "cumulative_spend",
+      "params": { "interval": "week", "top_affiliations": 8 } },
+    { "id": "messaging", "type": "messaging_tone",
+      "params": { "window_days": 28, "top_themes": 5,
+        "cards": [
+          { "label": "Labor",   "affiliation_ids": ["aff_labor"] },
+          { "label": "Liberal", "affiliation_ids": ["aff_liberal"] },
+          { "label": "Greens",  "affiliation_ids": ["aff_greens"] },
+          { "label": "Teals",   "affiliation_ids": ["aff_climate_200"] }
+        ] } },
+    { "id": "top_seats", "type": "top_seats",
+      "params": { "limit": 10, "windows": [7, 28], "rank_by_window": 7 },
+      "include": { "classification": ["political participant"] } }
+  ]
+}
