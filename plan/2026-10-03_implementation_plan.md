@@ -299,8 +299,8 @@ python -m dispatch.main publish-templates --build-tag <tag>              (inside
    described in words and a notice that the figures are not real.
 4. Upload layouts, partial copies and samples to `gs://advance_dispatch/templates/` (section 3.5).
 5. Upsert `dispatch_templates/<id>`, stamped with the build tag.
-6. Write `dispatch_catalogue/template_schema` and `dispatch_catalogue/section_types`, samples
-   included, stamped with the build tag.
+6. Write `dispatch_catalogue/template_schema` and `dispatch_catalogue/section_types`, stamped with
+   the build tag. They name samples and partials by bucket path; the bucket holds the one copy.
 
 `--dry-run` does steps 1 to 3. A real publish refuses to run outside Cloud Run. `deploy/deploy.sh`
 runs it as one execution of the job (`gcloud run jobs execute ... --args=publish-templates,...`)

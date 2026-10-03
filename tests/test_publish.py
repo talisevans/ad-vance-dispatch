@@ -146,7 +146,8 @@ def test_full_publish_writes_template_and_catalogue(templates_directory):
     schema = store.catalogue['template_schema']
     assert schema['build_tag'] == BUILD_TAG
     assert schema['example_template']['id'] == PROBE_TEMPLATE_ID
-    assert SAMPLE_NOTICE in schema['example_sample_html']
+    assert schema['example_sample_path'] == f'templates/emails/{PROBE_TEMPLATE_ID}/sample.html'
+    assert 'example_sample_html' not in schema
     keys = []
     for entry in schema['filter_registry']:
         keys.append(entry['key'])
@@ -166,14 +167,27 @@ def test_full_publish_writes_template_and_catalogue(templates_directory):
         used_by_ids.append(use['section_id'])
     assert used_by_ids == ['statewide', 'participants']
 
-    # A real type no template here uses is still catalogued, with its params schema and a sample
+    # A real type no template here uses is still catalogued, naming its files by bucket path only
     top_seats_entry = entries_by_type['top_seats']
     assert top_seats_entry['used_by'] == []
     assert 'rank_by_window' in top_seats_entry['params_json_schema']
     assert top_seats_entry['sample_path'] == 'templates/sections/top_seats/sample.html'
     assert top_seats_entry['partial_path'] == 'templates/sections/top_seats/top_seats.html.j2'
-    assert SAMPLE_NOTICE in top_seats_entry['sample_html']
-    assert '{{' in top_seats_entry['partial_source']
+    assert 'sample_html' not in top_seats_entry
+    assert 'partial_source' not in top_seats_entry
+
+
+def test_catalogue_paths_name_uploaded_files(templates_directory):
+    """Every path the catalogue names is a file the same publish uploaded."""
+    bucket, store = full_publish(templates_directory)
+
+    named_paths = [store.catalogue['template_schema']['example_sample_path']]
+    for entry in store.catalogue['section_types']['section_types']:
+        named_paths.append(entry['sample_path'])
+        named_paths.append(entry['partial_path'])
+
+    for object_path in named_paths:
+        assert object_path in bucket.objects
 
 
 def test_real_publish_is_refused_outside_cloud_run(templates_directory, monkeypatch):

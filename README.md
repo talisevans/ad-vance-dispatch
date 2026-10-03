@@ -91,12 +91,14 @@ gs://advance_dispatch/templates/
   sections/<type>/<type>.html.j2    read-only copy of the partial (the job uses the one in the image)
   sections/<type>/sample.html       the section alone, made-up figures, charts described in words
 Firestore dispatch_templates/<id>   the template, with build_tag and sample_path
-Firestore dispatch_catalogue/*      template_schema and section_types, samples and partial source included
+Firestore dispatch_catalogue/*      template_schema and section_types, naming each file by bucket path
 ```
 
 Samples are rendered from `tests/fixtures`, which the image carries for this purpose, and open with
-a notice that their figures are made up. The MCP tools `list_dispatch_sections` and
-`dispatch_template_guide` return them.
+a notice that their figures are made up. The bucket holds the one copy of each file. The MCP tools
+`list_dispatch_sections` and `dispatch_template_guide` read the catalogue from Firestore, then
+download a sample or partial from the bucket when one is asked for, signed in as the API's own
+service account, and return its text in the tool result.
 
 To see the samples locally without publishing, run the dry run: it renders them and writes nothing.
 

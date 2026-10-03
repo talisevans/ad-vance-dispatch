@@ -17,7 +17,8 @@ publish everything the job, the API and the MCP tools read.
        sections/<type>/sample.html      the section alone, made-up figures
   5. Upsert `dispatch_templates/<id>` in Firestore.
   6. Write `dispatch_catalogue/template_schema` and
-     `dispatch_catalogue/section_types`, samples included.
+     `dispatch_catalogue/section_types`. They name each sample and partial by
+     its bucket path; the bucket holds the one copy of every file.
 
 `--dry-run` does steps 1 to 3 and publishes nothing. A real publish runs only
 inside a Cloud Run execution of the deployed image, so everything it writes
@@ -448,11 +449,9 @@ def template_schema_document(sources, generated_at, build_tag):
 
     # The first template in the repository serves as the annotated example
     example = None
-    example_sample_html = None
     example_sample_path = None
     if sources:
         example = sources[0].raw
-        example_sample_html = sources[0].sample_html
         example_sample_path = email_sample_path(sources[0].template.id)
 
     return {
@@ -466,7 +465,6 @@ def template_schema_document(sources, generated_at, build_tag):
         'authoring_rules': list(AUTHORING_RULES),
         'example_template': example,
         'example_notes': list(EXAMPLE_NOTES),
-        'example_sample_html': example_sample_html,
         'example_sample_path': example_sample_path,
         'sample_notice': SAMPLE_NOTICE,
     }
@@ -489,11 +487,10 @@ def section_uses(sources, type_name):
     return uses
 
 
-def section_type_entry(sources, type_name, section_samples):
-    """One section type's catalogue entry: what it is, its params, its uses, its partial and its sample."""
+def section_type_entry(sources, type_name):
+    """One section type's catalogue entry: what it is, its params, its uses, and where its files are."""
     section_module = SECTION_TYPES[type_name]
     params_schema = section_module.Params.model_json_schema()
-    sample = section_samples[type_name]
 
     return {
         'type': type_name,
@@ -503,17 +500,15 @@ def section_type_entry(sources, type_name, section_samples):
         'params_json_schema': json.dumps(params_schema),
         'used_by': section_uses(sources, type_name),
         'partial_path': section_partial_path(type_name, section_module.PARTIAL),
-        'partial_source': sample.partial_source,
         'sample_path': section_sample_path(type_name),
-        'sample_html': sample.sample_html,
     }
 
 
-def section_types_document(sources, section_samples, generated_at, build_tag):
+def section_types_document(sources, generated_at, build_tag):
     """The catalogue document describing every registered section type."""
     types = []
     for type_name in sorted(SECTION_TYPES):
-        types.append(section_type_entry(sources, type_name, section_samples))
+        types.append(section_type_entry(sources, type_name))
 
     return {
         'generated_at': generated_at,
@@ -523,12 +518,12 @@ def section_types_document(sources, section_samples, generated_at, build_tag):
     }
 
 
-def write_catalogue(sources, section_samples, store, generated_at, build_tag):
+def write_catalogue(sources, store, generated_at, build_tag):
     """Write both catalogue documents."""
     schema_document = template_schema_document(sources, generated_at, build_tag)
     store.write_catalogue(CATALOGUE_TEMPLATE_SCHEMA_DOCUMENT, schema_document)
 
-    types_document = section_types_document(sources, section_samples, generated_at, build_tag)
+    types_document = section_types_document(sources, generated_at, build_tag)
     store.write_catalogue(CATALOGUE_SECTION_TYPES_DOCUMENT, types_document)
     log('wrote the catalogue')
 
@@ -574,7 +569,7 @@ def publish(only_template_id=None, dry_run=False, bucket=None, store=None,
     publish_section_files(plan.section_samples, bucket)
 
     # Step 6
-    write_catalogue(plan.all_sources, plan.section_samples, store, published_at, build_tag)
+    write_catalogue(plan.all_sources, store, published_at, build_tag)
     log(f'published build {build_tag}')
     return plan.sources
 
