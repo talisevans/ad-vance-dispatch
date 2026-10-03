@@ -3,7 +3,7 @@
 # Set up and deploy the AdVance Dispatch job.
 #
 #   deploy/deploy.sh setup              one-off infrastructure (plan section 9.1)
-#   deploy/deploy.sh deploy             test, build, tag latest, update the job, publish templates
+#   deploy/deploy.sh deploy             test, build, tag latest, update the job, publish from the image
 #   deploy/deploy.sh <command> --dry-run   say what would happen, change nothing
 #   deploy/deploy.sh deploy --skip-tests   deploy without running pytest first
 #
@@ -23,8 +23,10 @@
 #   6. The Firestore TTL policy on the `runs` collection group.
 #   7. The lifecycle rule deleting `sent/` objects after 30 days.
 #
-# `deploy` runs the tests, builds the image with Cloud Build, moves `latest`
-# onto it, points the job at `latest`, and runs `publish-templates`.
+# `deploy` runs the tests and a local `publish-templates --dry-run`, builds the
+# image with Cloud Build, moves `latest` onto it, points the job at `latest`
+# (creating the job and its grants on the first deploy), then runs
+# `publish-templates` as one execution of the job, inside the new image.
 
 set -euo pipefail
 
@@ -186,6 +188,40 @@ grant_job_role() {
 }
 
 # ---------------------------------------------------------------- #
+# The Cloud Run job
+# ---------------------------------------------------------------- #
+
+# Whether the Dispatch job exists yet
+job_exists() {
+    gcloud run jobs describe "$JOB_NAME" --project="$PROJECT_ID" --region="$REGION" >/dev/null 2>&1
+}
+
+# Whether an image is tagged latest yet
+image_exists() {
+    gcloud artifacts docker images describe "$LATEST_IMAGE" --project="$PROJECT_ID" >/dev/null 2>&1
+}
+
+# Let the invoker account start the job, and the API start it with argument overrides
+grant_job_access() {
+    grant_job_role "serviceAccount:${INVOKER_ACCOUNT}" 'roles/run.invoker'
+    grant_job_role "serviceAccount:${API_ACCOUNT}" 'roles/run.developer'
+}
+
+# Create the job on the latest image, then grant access to it
+create_job() {
+    run gcloud run jobs create "$JOB_NAME" \
+        --project="$PROJECT_ID" \
+        --region="$REGION" \
+        --image="$LATEST_IMAGE" \
+        --service-account="$JOB_ACCOUNT" \
+        --memory=2Gi \
+        --cpu=1 \
+        --task-timeout=15m \
+        --max-retries=0
+    grant_job_access
+}
+
+# ---------------------------------------------------------------- #
 # Setup
 # ---------------------------------------------------------------- #
 
@@ -240,31 +276,13 @@ POLICY
     rm -f "$policy_file"
 
     step '5. The Cloud Run job'
-    if gcloud run jobs describe "$JOB_NAME" --project="$PROJECT_ID" --region="$REGION" >/dev/null 2>&1; then
+    if job_exists; then
         info "${JOB_NAME}: exists"
+        grant_job_access
+    elif image_exists; then
+        create_job
     else
-        # The image must exist before the job can be created
-        if ! gcloud artifacts docker images describe "$LATEST_IMAGE" --project="$PROJECT_ID" >/dev/null 2>&1; then
-            warn "No image at ${LATEST_IMAGE} yet. Run 'deploy/deploy.sh deploy', then setup again."
-        else
-            run gcloud run jobs create "$JOB_NAME" \
-                --project="$PROJECT_ID" \
-                --region="$REGION" \
-                --image="$LATEST_IMAGE" \
-                --service-account="$JOB_ACCOUNT" \
-                --memory=2Gi \
-                --cpu=1 \
-                --task-timeout=15m \
-                --max-retries=0
-        fi
-    fi
-
-    # The invoker runs the job; the API runs it with argument overrides
-    if gcloud run jobs describe "$JOB_NAME" --project="$PROJECT_ID" --region="$REGION" >/dev/null 2>&1; then
-        grant_job_role "serviceAccount:${INVOKER_ACCOUNT}" 'roles/run.invoker'
-        grant_job_role "serviceAccount:${API_ACCOUNT}" 'roles/run.developer'
-    else
-        warn 'Job grants skipped until the job exists.'
+        warn "No image at ${LATEST_IMAGE} yet. 'deploy/deploy.sh deploy' creates the job once it has built one."
     fi
 
     step '6. Firestore TTL on runs'
@@ -335,18 +353,24 @@ do_deploy() {
         --quiet
 
     step 'Point the job at latest'
-    if gcloud run jobs describe "$JOB_NAME" --project="$PROJECT_ID" --region="$REGION" >/dev/null 2>&1; then
+    if job_exists; then
         run gcloud run jobs update "$JOB_NAME" \
             --project="$PROJECT_ID" \
             --region="$REGION" \
             --image="$LATEST_IMAGE" \
             --quiet
     else
-        warn "${JOB_NAME} does not exist yet. Run 'deploy/deploy.sh setup' to create it."
+        create_job
     fi
 
-    step 'Publish templates'
-    run "$python_path" -m dispatch.publish_templates
+    # Publish from inside the new image, so templates, samples and the catalogue match what the job runs
+    step 'Publish templates from the image'
+    run gcloud run jobs execute "$JOB_NAME" \
+        --project="$PROJECT_ID" \
+        --region="$REGION" \
+        --args="publish-templates,--build-tag,${build_tag}" \
+        --wait \
+        || die "publish-templates failed in the image. See the ${JOB_NAME} execution logs."
 
     step 'Done'
     info "Deployed: ${build_tag}"

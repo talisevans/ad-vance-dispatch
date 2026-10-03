@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV MPLCONFIGDIR=/tmp/matplotlib
 ENV PYTHONUNBUFFERED=1
 
+# publish-templates finds templates/ and the made-up sample data under this folder
+ENV DISPATCH_HOME=/app
+
 WORKDIR /app
 
 # Install the pinned dependencies first, so this layer is reused until requirements.txt changes
@@ -20,5 +23,10 @@ COPY pyproject.toml .
 COPY src/ src/
 RUN pip install --no-cache-dir --no-deps .
 
-# Cloud Run passes only the arguments, e.g. --record-id <id>
+# The email templates and the made-up data samples are rendered from, for publish-templates
+COPY templates/ templates/
+COPY tests/fixtures/gold/ tests/fixtures/gold/
+COPY tests/fixtures/lookups/ tests/fixtures/lookups/
+
+# Cloud Run passes only the arguments: --record-id <id>, or publish-templates --build-tag <tag>
 ENTRYPOINT ["python", "-m", "dispatch.main"]

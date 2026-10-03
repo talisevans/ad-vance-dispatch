@@ -52,7 +52,7 @@ FAILED_OUTCOME = 'failed'
 SKIPPED_OUTCOME = 'skipped'
 
 # Fields publish-templates adds to a template document that are not part of the template itself
-PUBLISH_ONLY_FIELDS = ('published_at',)
+PUBLISH_ONLY_FIELDS = ('published_at', 'build_tag', 'sample_path')
 
 
 def utc_now():

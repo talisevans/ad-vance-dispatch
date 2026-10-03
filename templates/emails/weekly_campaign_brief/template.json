@@ -4,7 +4,7 @@
   "name": "Weekly Campaign Brief",
   "description": "Weekly ad spend briefing for one jurisdiction: bias gauge, cumulative spend, messaging and top seats.",
   "subject": "{jurisdiction_label} election brief, week to {as_of_long}",
-  "layout_path": "templates/weekly_campaign_brief/layout.html.j2",
+  "layout_path": "templates/emails/weekly_campaign_brief/layout.html.j2",
   "required_properties": [
     { "key": "start_date",   "label": "Data from",    "type": "date" },
     { "key": "end_date",     "label": "Data to",      "type": "date" },

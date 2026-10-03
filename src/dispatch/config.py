@@ -35,10 +35,20 @@ GOLD_BUCKET = 'advance_gold'
 LOOKUPS_BUCKET = 'advance_lookups'
 LOOKUPS_PREFIX = 'caches/'
 
-# Template layouts and the archive of every sent Dispatch
+# Published templates and the archive of every sent Dispatch
 DISPATCH_BUCKET = 'advance_dispatch'
 TEMPLATES_PREFIX = 'templates/'
 ARCHIVE_PREFIX = 'sent/'
+
+# Each email template's layout and sample, under templates/emails/<template_id>/
+EMAIL_TEMPLATES_PREFIX = f'{TEMPLATES_PREFIX}emails/'
+
+# A read-only copy of each section's partial and its sample, under templates/sections/<type>/
+SECTION_TEMPLATES_PREFIX = f'{TEMPLATES_PREFIX}sections/'
+
+# The file names inside those folders
+LAYOUT_FILE_NAME = 'layout.html.j2'
+SAMPLE_FILE_NAME = 'sample.html'
 
 
 # ---------------------------------------------------------------- #
@@ -109,6 +119,15 @@ LOOKUPS_DIRECTORY_VARIABLE = 'DISPATCH_LOOKUPS_DIR'
 DOWNLOAD_DIRECTORY_VARIABLE = 'DISPATCH_DOWNLOAD_DIR'
 DEFAULT_DOWNLOAD_DIRECTORY = '/tmp/advance-dispatch'
 
+# The folder holding `templates/` and the sample data; the image sets it to /app
+HOME_DIRECTORY_VARIABLE = 'DISPATCH_HOME'
+
+# The repository root, used when DISPATCH_HOME is not set: three levels above this file
+REPOSITORY_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Cloud Run sets this in every job execution, so its presence means the code is running in the image
+CLOUD_RUN_JOB_VARIABLE = 'CLOUD_RUN_JOB'
+
 
 def environment_value(name):
     """Return an environment variable's value, or None when it is unset or blank."""
@@ -117,3 +136,16 @@ def environment_value(name):
     if stripped == '':
         return None
     return stripped
+
+
+def home_directory():
+    """The folder holding `templates/` and the sample data: DISPATCH_HOME, or the repository root."""
+    configured = environment_value(HOME_DIRECTORY_VARIABLE)
+    if configured is not None:
+        return configured
+    return REPOSITORY_ROOT
+
+
+def running_in_cloud_run():
+    """Whether this process is a Cloud Run job execution."""
+    return environment_value(CLOUD_RUN_JOB_VARIABLE) is not None

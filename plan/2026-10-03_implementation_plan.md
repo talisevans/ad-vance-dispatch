@@ -180,7 +180,10 @@ Written only by `publish-templates`, generated from the job's pydantic models. R
 ### 3.5 Bucket layout (`gs://advance_dispatch`)
 
 ```
-templates/<template_id>/layout.html.j2
+templates/emails/<template_id>/layout.html.j2
+templates/emails/<template_id>/sample.html
+templates/sections/<type>/<type>.html.j2      read-only copy; the job renders from the image
+templates/sections/<type>/sample.html
 sent/<record_id>/<slot>/email.html
 sent/<record_id>/<slot>/browser.html
 sent/<record_id>/<slot>/<chart_name>.png
@@ -286,16 +289,22 @@ headings, docstring on every function and class.
 ### 4.4 `publish-templates`
 
 ```
-python -m dispatch.publish_templates [--template <id>] [--dry-run]
+python -m dispatch.publish_templates [--template <id>] --dry-run         (anywhere)
+python -m dispatch.main publish-templates --build-tag <tag>              (inside the image only)
 ```
 
-1. Load every `templates/*/template.json` and validate it.
-2. Render each template once against the test fixtures, to catch layout and partial errors.
-3. Upload `layout.html.j2` to `gs://advance_dispatch/templates/<id>/`.
-4. Upsert `dispatch_templates/<id>`.
-5. Write `dispatch_catalogue/template_schema` and `dispatch_catalogue/section_types`.
+1. Load every `templates/emails/*/template.json` and validate it.
+2. Render each template against the test fixtures, to catch layout and partial errors.
+3. Render samples: one per email template, one per section type, from made-up data, with charts
+   described in words and a notice that the figures are not real.
+4. Upload layouts, partial copies and samples to `gs://advance_dispatch/templates/` (section 3.5).
+5. Upsert `dispatch_templates/<id>`, stamped with the build tag.
+6. Write `dispatch_catalogue/template_schema` and `dispatch_catalogue/section_types`, samples
+   included, stamped with the build tag.
 
-`--dry-run` does steps 1 and 2 only. `deploy/deploy.sh` runs it after building the image.
+`--dry-run` does steps 1 to 3. A real publish refuses to run outside Cloud Run. `deploy/deploy.sh`
+runs it as one execution of the job (`gcloud run jobs execute ... --args=publish-templates,...`)
+after pointing the job at the new image, so what is published always matches what the job runs.
 
 ## 5. Phase 2: the job (`AdVance-dispatch`)
 

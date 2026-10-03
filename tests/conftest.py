@@ -32,7 +32,7 @@ PROBE_LAYOUT_PATH = os.path.join(TESTS_DIRECTORY, 'support', 'probe_layout.html.
 
 # The probe template's id and its layout's path inside a layouts root
 PROBE_TEMPLATE_ID = 'probe_brief'
-PROBE_LAYOUT_RELATIVE_PATH = f'templates/{PROBE_TEMPLATE_ID}/layout.html.j2'
+PROBE_LAYOUT_RELATIVE_PATH = f'templates/emails/{PROBE_TEMPLATE_ID}/layout.html.j2'
 
 # The record every run test uses
 RECORD_ID = 'record_vic'

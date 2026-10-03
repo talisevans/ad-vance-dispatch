@@ -114,8 +114,10 @@ def preview_services(record_document, template, templates_directory, gold_direct
         templates={template['id']: template},
     )
 
-    # Layout paths are relative to the folder holding `templates/`
-    layouts_root = os.path.dirname(os.path.abspath(templates_directory))
+    # Layout paths (`templates/emails/<id>/...`) are relative to the folder holding `templates/`
+    emails_directory = os.path.abspath(templates_directory)
+    templates_root = os.path.dirname(emails_directory)
+    layouts_root = os.path.dirname(templates_root)
 
     return Services(
         store=store,

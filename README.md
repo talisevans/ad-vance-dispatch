@@ -2,7 +2,7 @@
 
 Scheduled HTML email briefings built from AdVance gold data.
 
-- A **Dispatch Template** (written by a developer, in `templates/<id>/`) says what an email
+- A **Dispatch Template** (written by a developer, in `templates/emails/<id>/`) says what an email
   contains, which properties a record must supply, and how each section filters the data.
 - A **Dispatch Record** (created by an admin in the web app, stored in Firestore
   `dispatch_records`) picks a template, fills in its properties, and sets recipients, schedule and
@@ -17,11 +17,11 @@ on are in `plan/CONTRACTS.md`.
 
 ```
 src/dispatch/
-  main.py               entry point: --record-id, --manual, --test-recipient, --render-only
+  main.py               entry point: --record-id, --manual, --test-recipient, --render-only, publish-templates
   preview.py            local render to disk with fakes for every cloud service
   run.py                one record end to end: window checks, slot, build, archive, send, ledger
   build.py              build sections and render the email, browser copy and plain text
-  publish_templates.py  validate, render against fixtures, upload layouts, write the catalogue
+  publish_templates.py  validate, render samples, upload layouts, partial copies and samples, write the catalogue
   config.py             project, buckets, secrets, collections, environment variables
   formatting.py         money, percentages and dates, also available as Jinja2 filters
   models/               pydantic: Template, DispatchRecord, RunLedger
@@ -29,11 +29,11 @@ src/dispatch/
   data/                 gold in DuckDB, reference data and colours, as_of and windows
   sections/             base.py (the contract), registry.py, one folder per type holding its module and partial
   charts/               style.py (shared chart style), one module per chart kind
-  render/               email_skeleton.html.j2, layout rendering, CSS inlining
+  render/               email_skeleton.html.j2, shared CSS, layout rendering, CSS inlining, samples
   delivery/             MIME building, SES over SMTP, archive and signed browser link
   scheduling/           slots from cron, deleting the record's own trigger
   store/                Firestore behind an interface, with an in-memory fake
-templates/<id>/         template.json, layout.html.j2 and an example_record.json for previews
+templates/emails/<id>/  template.json, layout.html.j2 and an example_record.json for previews
 tests/                  pytest, with fixtures in tests/fixtures
 deploy/deploy.sh        setup (one-off infrastructure) and deploy
 ```
@@ -54,10 +54,10 @@ package, change its pin, reinstall, run the tests, and rebuild the image.
 
 ## How to add a template
 
-1. Create `templates/<template_id>/template.json`. The id is a lower-case slug and must match the
-   folder name. `layout_path` must be `templates/<template_id>/layout.html.j2`. The shape is in
+1. Create `templates/emails/<template_id>/template.json`. The id is a lower-case slug and must match
+   the folder name. `layout_path` must be `templates/emails/<template_id>/layout.html.j2`. The shape is in
    plan section 3.1; `plan/CONTRACTS.md` lists the property types, subject placeholders and filter keys.
-2. Create `templates/<template_id>/layout.html.j2`. It extends `email_skeleton.html.j2` and fills
+2. Create `templates/emails/<template_id>/layout.html.j2`. It extends `email_skeleton.html.j2` and fills
    the `header` block. The skeleton already loops over the sections and includes each partial;
    override the `sections` block only to change that.
 3. Reuse existing section types where their params can express the need. Never put jurisdiction or
@@ -68,7 +68,37 @@ package, change its pin, reinstall, run the tests, and rebuild the image.
    .venv/bin/python -m dispatch.publish_templates --template <template_id> --dry-run
    ```
 
-5. Publish with `deploy/deploy.sh deploy`, which runs `publish-templates` after building the image.
+5. Publish with `deploy/deploy.sh deploy`. A real publish runs only inside the deployed image (see
+   "Publishing" below), so it cannot be run from your machine.
+
+## Publishing
+
+`deploy/deploy.sh deploy` builds the image, points the job at it, then runs
+`publish-templates` as one execution of the job:
+
+```
+gcloud run jobs execute advance-dispatch --args=publish-templates,--build-tag,<tag> --wait
+```
+
+Running inside the image means everything published comes from the code and templates the job
+sends with. The publish refuses to run anywhere else (it checks for Cloud Run's `CLOUD_RUN_JOB`
+variable) and needs the image's build tag, which it stamps on every document. It writes:
+
+```
+gs://advance_dispatch/templates/
+  emails/<id>/layout.html.j2        the layout the job reads at send time
+  emails/<id>/sample.html           the whole email, made-up figures, charts described in words
+  sections/<type>/<type>.html.j2    read-only copy of the partial (the job uses the one in the image)
+  sections/<type>/sample.html       the section alone, made-up figures, charts described in words
+Firestore dispatch_templates/<id>   the template, with build_tag and sample_path
+Firestore dispatch_catalogue/*      template_schema and section_types, samples and partial source included
+```
+
+Samples are rendered from `tests/fixtures`, which the image carries for this purpose, and open with
+a notice that their figures are made up. The MCP tools `list_dispatch_sections` and
+`dispatch_template_guide` return them.
+
+To see the samples locally without publishing, run the dry run: it renders them and writes nothing.
 
 ## How to add a section type
 
@@ -129,7 +159,7 @@ Against the API's parquet mirror:
 
 ```
 .venv/bin/python -m dispatch.main --render-only \
-  --record-file templates/weekly_campaign_brief/example_record.json \
+  --record-file templates/emails/weekly_campaign_brief/example_record.json \
   --data-dir /tmp/advance-gold \
   --out out/
 ```
@@ -138,7 +168,7 @@ Against the test fixtures (their lookups sit outside the gold folder, so name th
 
 ```
 .venv/bin/python -m dispatch.main --render-only \
-  --record-file templates/weekly_campaign_brief/example_record.json \
+  --record-file templates/emails/weekly_campaign_brief/example_record.json \
   --data-dir tests/fixtures/gold --lookups-dir tests/fixtures/lookups \
   --out out/
 ```

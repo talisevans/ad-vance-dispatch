@@ -274,7 +274,7 @@ Do not use `bbox_inches='tight'`; it changes the pixel size away from 2x the dis
 ## 10. Templates (`models/template.py`)
 
 `Template` fields: `id` (slug), `schema_version` (must be in `SUPPORTED_SCHEMA_VERSIONS = {1}`),
-`name`, `description`, `subject`, `layout_path` (`templates/<id>/layout.html.j2`),
+`name`, `description`, `subject`, `layout_path` (`templates/emails/<id>/layout.html.j2`),
 `required_properties`, `globals` (`FilterSet`), `sections` (`SectionConfig` list).
 
 Property types: `date` (`YYYY-MM-DD`), `enum` (needs `options`), `string`, `number`,
@@ -287,10 +287,18 @@ and `end_date` properties; `state` is used when present.
 Subject placeholders: `{jurisdiction_label}`, `{as_of_long}`, `{window_start_long}` (7-day window
 start), `{template_name}`, `{record_name}`.
 
-`publish-templates --dry-run` renders each template against the fixtures once per branch of its
+`publish-templates` runs inside the deployed image only (README, "Publishing"); `--dry-run` runs
+anywhere. It renders each template against the fixtures once per branch of its
 `required_when` conditions (for the Weekly Campaign Brief: federal, then state with `NSW`), using
 `start_date 2026-08-01` and `end_date 2026-11-28`. The catalogue stores JSON Schemas as JSON
 strings (`template_json_schema`, `params_json_schema`), because Firestore cannot hold nested arrays.
+
+Samples (`render/samples.py`): each section type is built once over the fixtures for VIC state
+seats, using the settings of its first use in a template (or its default params), and rendered alone
+in `render/sample_frame.html.j2`. Each email template's sample is its first property set rendered in
+its layout. Samples keep CSS in a `<style>` block, replace every `<img>` with a box quoting the
+chart's size and alt text, and open with the made-up data notice. Both the skeleton and the sample
+frame include `render/email_styles.css.j2`, so samples look like the email.
 
 ## 10a. The v1 section types
 

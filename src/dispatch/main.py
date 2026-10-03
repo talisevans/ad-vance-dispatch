@@ -2,6 +2,10 @@
 The job's entry point.
 
     python -m dispatch.main --record-id <id> [--manual] [--test-recipient <email>]
+    python -m dispatch.main publish-templates --build-tag <tag>
+
+`deploy/deploy.sh deploy` runs `publish-templates` as one execution of the job,
+so templates, samples and the catalogue are published from inside the image.
 
 Cloud Scheduler passes `--record-id` only. The API passes `--manual` for
 "Send now" and `--test-recipient` for "Send test to me". The process exits
@@ -20,6 +24,7 @@ To render a Dispatch to disk with no cloud access at all (see `preview.py`):
 import argparse
 import sys
 
+from dispatch import publish_templates
 from dispatch.data.gold import resolve_gold_source
 from dispatch.delivery.archive import GcsArchiveStore
 from dispatch.delivery.ses import SmtpMailer
@@ -36,6 +41,9 @@ from dispatch.store.firestore import FirestoreDispatchStore
 
 # Where a local render writes its files when no folder is given
 DEFAULT_OUT_DIRECTORY = 'out'
+
+# The first argument that runs publish-templates instead of a record
+PUBLISH_TEMPLATES_COMMAND = 'publish-templates'
 
 
 def parse_arguments(arguments):
@@ -96,8 +104,22 @@ def real_services(layout_directory):
 # Entry point
 # ---------------------------------------------------------------- #
 
+def is_publish_command(arguments):
+    """Whether the arguments start with the publish-templates command."""
+    if not arguments:
+        return False
+    return arguments[0] == PUBLISH_TEMPLATES_COMMAND
+
+
 def main(arguments=None):
-    """Run one record and return the exit code."""
+    """Run one record, or publish-templates, and return the exit code."""
+    if arguments is None:
+        arguments = sys.argv[1:]
+
+    # publish-templates takes the rest of the arguments as its own
+    if is_publish_command(arguments):
+        return publish_templates.main(arguments[1:])
+
     options = parse_arguments(arguments)
 
     # A local render writes files and sends nothing
