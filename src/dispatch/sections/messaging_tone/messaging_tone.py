@@ -68,10 +68,10 @@ class Params(BaseModel):
 
 # The tones gold holds, in the order they are drawn, with their names and colours
 KNOWN_TONES = (
-    ('positive', 'Positive', '#4c9f70'),
+    ('positive', 'Positive', '#2e9e4f'),
     ('neutral', 'Neutral', '#c9b458'),
     ('compare & contrast', 'Compare and contrast', '#9aa3b5'),
-    ('negative', 'Negative', '#d9822b'),
+    ('negative', 'Negative', '#d64545'),
 )
 
 # Spend with no tone, drawn last

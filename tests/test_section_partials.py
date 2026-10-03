@@ -148,7 +148,7 @@ def test_tone_and_theme_bars_are_table_cells(victorian):
     """The Liberal card's 80% negative tone is a table cell, not an image."""
     _built, output = victorian
     html = output.email_html
-    assert 'width="80%" height="14" bgcolor="#d9822b"' in html
+    assert 'width="80%" height="14" bgcolor="#d64545"' in html
     assert 'No advertising in the last 28 days' in html
 
 
