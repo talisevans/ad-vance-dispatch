@@ -99,7 +99,18 @@ def test_government_is_dropped_even_without_the_template_filter(gold_connection,
     amounts = dict(legend_amounts(result))
     assert amounts['unmapped'] == 665.0
     assert result.variables['total'] == 4165.0
-    assert result.notes == ['Government advertising is excluded from bias figures.']
+
+    # The footer says so, since the template does not, and nothing is said under the chart
+    assert result.scope_notes == ['Bias figures exclude government advertising.']
+    assert result.notes == []
+
+
+def test_no_footer_line_when_the_template_already_excludes_government(gold_connection, reference):
+    """The Weekly Campaign Brief excludes government globally, so the gauge adds no footer line."""
+    context = make_section_context(gold_connection, reference)
+    result = build_section(bias_gauge, context, {'window_days': 7})
+    assert result.scope_notes == []
+    assert result.notes == []
 
 
 def test_twenty_eight_day_split(gold_connection, reference):

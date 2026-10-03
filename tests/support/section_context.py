@@ -3,6 +3,7 @@ Build a SectionContext over the fixture gold for section tests, and run a sectio
 """
 
 import datetime
+from types import SimpleNamespace
 
 from dispatch.data.as_of import compute_data_dates
 from dispatch.filters.compile import compile_filters
@@ -41,10 +42,17 @@ def make_section_context(
     """A SectionContext over the fixture gold for one scope, filter stack and record range."""
     compiled = compile_filters(list(filter_sets), reference.affiliation_group)
     dates = compute_data_dates(connection, start_date, end_date)
+
+    # The first filter set stands as the template's globals, as build.py stacks them
+    global_filters = FilterSet()
+    if filter_sets:
+        global_filters = filter_sets[0]
+    template = SimpleNamespace(globals=global_filters)
+
     return SectionContext(
         connection=connection,
         record=None,
-        template=None,
+        template=template,
         section=None,
         property_values={},
         jurisdiction=jurisdiction,

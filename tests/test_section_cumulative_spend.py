@@ -104,7 +104,16 @@ def test_government_is_dropped_even_without_the_template_filter(gold_connection,
 
     assert result.variables['grand_total'] == 18880.0
     assert dict(column_rows(result, 'By bias'))['Unmapped'] == 1040.0
-    assert 'Government advertising is excluded.' in result.notes
+    assert result.scope_notes == ['Cumulative spend figures exclude government advertising.']
+    for note in result.notes:
+        assert 'overnment' not in note
+
+
+def test_no_footer_line_when_the_template_already_excludes_government(gold_connection, reference):
+    """With the template's own government exclusion, the section adds no footer line."""
+    context = make_section_context(gold_connection, reference)
+    result = build_section(cumulative_spend, context, {})
+    assert result.scope_notes == []
 
 
 # ---------------------------------------------------------------- #

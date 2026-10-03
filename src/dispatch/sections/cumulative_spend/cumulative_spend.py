@@ -29,7 +29,7 @@ from dispatch.data.reference import (
     bias_display_name,
 )
 from dispatch.formatting import format_date_range, format_long_date, format_money
-from dispatch.sections.base import GOVERNMENT_CLASSIFICATION, SectionResult
+from dispatch.sections.base import GOVERNMENT_CLASSIFICATION, SectionResult, government_scope_notes
 
 
 # ---------------------------------------------------------------- #
@@ -69,9 +69,6 @@ WEEK_START_WEEKDAY = 0
 
 # The key unmapped affiliation spend is gathered under while adding up
 UNMAPPED_AFFILIATION_KEY = None
-
-# The note every cumulative section carries
-GOVERNMENT_NOTE = 'Government advertising is excluded.'
 
 
 # ---------------------------------------------------------------- #
@@ -363,6 +360,7 @@ def build(context, params):
     return SectionResult(
         variables=variables,
         images=[bias_chart, affiliation_chart],
-        notes=[period_note, GOVERNMENT_NOTE],
+        notes=[period_note],
         summary_lines=summary_lines,
+        scope_notes=government_scope_notes(context, 'Cumulative spend figures'),
     )

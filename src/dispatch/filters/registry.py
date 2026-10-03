@@ -37,7 +37,7 @@ LIST_ANY_MATCH = 'list_any'
 
 @dataclass(frozen=True)
 class FilterKey:
-    """One filter key: its name, kind, source, value type and whether v1 compiles it."""
+    """One filter key: its name, kind, source, value type, whether v1 compiles it, and how the footer says it."""
     key: str
     kind: str
     source: str
@@ -46,6 +46,13 @@ class FilterKey:
     value_type: str = TEXT_VALUES
     match: str = SCALAR_MATCH
     column: str = ''
+
+    # How the email footer names the key, e.g. "Excludes advertising whose source is google."
+    noun: str = ''
+
+    # A smoother sentence for this key, with {values} filled in, e.g. "Excludes {values} advertising."
+    exclude_phrase: str = ''
+    include_phrase: str = ''
 
 
 # ---------------------------------------------------------------- #
@@ -60,6 +67,9 @@ FILTER_KEYS = (
         description='Creator classification: political participant, interest group or government.',
         implemented=True,
         column='creator_classification',
+        noun='classification',
+        exclude_phrase='Excludes {values} advertising.',
+        include_phrase='Covers {values} advertising only.',
     ),
     FilterKey(
         key='affiliation_id',
@@ -68,6 +78,7 @@ FILTER_KEYS = (
         description='Affiliation ids, e.g. aff_labor. Merged affiliations keep matching.',
         implemented=True,
         column='creator_affiliation_id',
+        noun='affiliation',
     ),
     FilterKey(
         key='bias',
@@ -76,6 +87,7 @@ FILTER_KEYS = (
         description='Bias names as gold holds them, e.g. left, centrist, extreme right.',
         implemented=True,
         column='creator_affiliation_bias',
+        noun='bias',
     ),
     FilterKey(
         key='creator_id',
@@ -84,6 +96,7 @@ FILTER_KEYS = (
         description='Content creator ids.',
         implemented=True,
         column='creator_id',
+        noun='creator',
     ),
     FilterKey(
         key='datasource',
@@ -92,6 +105,7 @@ FILTER_KEYS = (
         description='meta or google.',
         implemented=True,
         column='datasource',
+        noun='source',
     ),
     FilterKey(
         key='approach',
@@ -100,6 +114,7 @@ FILTER_KEYS = (
         description='Tone: positive, negative, compare & contrast.',
         implemented=True,
         column='approach',
+        noun='tone',
     ),
     FilterKey(
         key='theme',
@@ -109,6 +124,7 @@ FILTER_KEYS = (
         implemented=True,
         match=LIST_ANY_MATCH,
         column='themes',
+        noun='theme',
     ),
     FilterKey(
         key='is_local_government_content',
@@ -118,6 +134,7 @@ FILTER_KEYS = (
         implemented=True,
         value_type=BOOLEAN_VALUES,
         column='is_local_government_content',
+        noun='local government flag',
     ),
     FilterKey(
         key='age_range',
@@ -125,6 +142,7 @@ FILTER_KEYS = (
         source='ad_demo',
         description='Age buckets. Narrows the money by share; shares one join with gender.',
         implemented=False,
+        noun='age range',
     ),
     FilterKey(
         key='gender',
@@ -132,6 +150,7 @@ FILTER_KEYS = (
         source='ad_demo',
         description='Genders. Narrows the money by share; shares one join with age_range.',
         implemented=False,
+        noun='gender',
     ),
     FilterKey(
         key='platform',
@@ -139,6 +158,7 @@ FILTER_KEYS = (
         source='ad_platform',
         description='Delivery platforms. Narrows the money by share.',
         implemented=False,
+        noun='platform',
     ),
     FilterKey(
         key='electorate_id',
@@ -146,6 +166,7 @@ FILTER_KEYS = (
         source='ad_geo',
         description='unique_electorate_id values. Narrows the money by share.',
         implemented=False,
+        noun='electorate',
     ),
 )
 

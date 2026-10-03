@@ -21,6 +21,7 @@ from dispatch.config import TEST_SUBJECT_PREFIX
 from dispatch.data.as_of import compute_data_dates
 from dispatch.data.reference import ReferenceData
 from dispatch.filters.compile import compile_filters
+from dispatch.filters.describe import describe_filter_set
 from dispatch.formatting import format_date_range, format_long_date, jurisdiction_label, parse_iso_date
 from dispatch.render.inline import inline_css
 from dispatch.render.layout import (
@@ -205,6 +206,22 @@ def make_subject(built, is_test):
     return subject
 
 
+def scope_lines(built):
+    """
+    What the whole email leaves out, said once for the footer: the template's global filters in
+    words, then each section's scope notes, with repeats removed.
+    """
+    lines = describe_filter_set(built.template.globals)
+
+    # Each section's scope notes, once each, in template order
+    for built_section in built.sections:
+        for note in built_section.result.scope_notes:
+            if note in lines:
+                continue
+            lines.append(note)
+    return lines
+
+
 def dispatch_variables(built, mode, subject, browser_url, is_test):
     """The dispatch-wide variables a layout sees as `dispatch`."""
     headline_window = built.dates.window(HEADLINE_WINDOW_DAYS)
@@ -233,6 +250,7 @@ def dispatch_variables(built, mode, subject, browser_url, is_test):
         'window_start': headline_window.start,
         'window_range': format_date_range(headline_window.start, headline_window.end),
         'data_source_sentence': DATA_SOURCE_SENTENCE,
+        'scope_lines': scope_lines(built),
         'callouts': callouts,
         'contact_email': built.record.contact(),
         'browser_url': browser_url,
@@ -275,11 +293,13 @@ def plain_text(built, browser_url, is_test):
             lines.append(line)
         lines.append('')
 
-    # The Google callout, the window, the link and the unsubscribe contact
+    # The Google callout, the window, what the figures leave out, the link and the unsubscribe contact
     google_callout = built.dates.google_callout
     if google_callout is not None:
         lines.append(google_callout)
     lines.append(f'{headline_window.sentence}.')
+    for scope_line in scope_lines(built):
+        lines.append(scope_line)
     lines.append('')
     lines.append(f'View this email in your browser: {browser_url}')
     lines.append('')

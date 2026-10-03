@@ -23,7 +23,7 @@ from dispatch.data.reference import (
     bias_display_name,
 )
 from dispatch.formatting import format_money, safe_share
-from dispatch.sections.base import GOVERNMENT_CLASSIFICATION, SectionResult
+from dispatch.sections.base import GOVERNMENT_CLASSIFICATION, SectionResult, government_scope_notes
 
 
 # ---------------------------------------------------------------- #
@@ -61,9 +61,6 @@ RIGHT_LABEL = 'Right'
 LEFT_HEADLINE_COLOUR = '#b3001b'
 CENTRE_HEADLINE_COLOUR = '#555555'
 RIGHT_HEADLINE_COLOUR = '#003cb3'
-
-# The note every gauge carries (decision D17)
-GOVERNMENT_NOTE = 'Government advertising is excluded from bias figures.'
 
 
 # ---------------------------------------------------------------- #
@@ -259,6 +256,6 @@ def build(context, params):
     return SectionResult(
         variables=variables,
         images=[gauge],
-        notes=[GOVERNMENT_NOTE],
         summary_lines=[summary],
+        scope_notes=government_scope_notes(context, 'Bias figures'),
     )

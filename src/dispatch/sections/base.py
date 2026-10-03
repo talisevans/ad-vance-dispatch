@@ -70,11 +70,17 @@ class ChartImage:
 
 @dataclass
 class SectionResult:
-    """What a section returns: template variables, chart images, footnotes and plain-text lines."""
+    """
+    What a section returns: template variables, chart images, footnotes and plain-text lines.
+
+    `notes` print under the section. `scope_notes` say what the section's figures always leave
+    out; they print once in the email footer, with duplicates across sections removed.
+    """
     variables: dict = field(default_factory=dict)
     images: list = field(default_factory=list)
     notes: list = field(default_factory=list)
     summary_lines: list = field(default_factory=list)
+    scope_notes: list = field(default_factory=list)
 
 
 class SectionModule(Protocol):
@@ -272,3 +278,25 @@ def bind_referenced(sql, available):
             raise KeyError(f'query refers to ${name}, which no parameter supplies')
         bound[name] = available[name]
     return bound
+
+
+# ---------------------------------------------------------------- #
+# Scope notes
+# ---------------------------------------------------------------- #
+
+
+
+def excluded_by_globals(context, key, value):
+    """Whether the template's global filters already exclude one value of a key."""
+    excluded_values = context.template.globals.exclude.get(key, [])
+    return value in excluded_values
+
+
+def government_scope_notes(context, figures_name):
+    """
+    The footer line for a section that always drops government advertising, e.g. "Bias figures
+    exclude government advertising." None when the template already excludes government.
+    """
+    if excluded_by_globals(context, 'classification', GOVERNMENT_CLASSIFICATION):
+        return []
+    return [f'{figures_name} exclude government advertising.']
