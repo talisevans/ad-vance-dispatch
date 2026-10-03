@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 # Liberation Sans is metric-compatible with Arial, so charts render the same in any container
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -11,10 +11,14 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# Install the pinned dependencies first, so this layer is reused until requirements.txt changes
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Install the package with its partials and the email skeleton
 COPY pyproject.toml .
 COPY src/ src/
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir --no-deps .
 
 # Cloud Run passes only the arguments, e.g. --record-id <id>
 ENTRYPOINT ["python", "-m", "dispatch.main"]

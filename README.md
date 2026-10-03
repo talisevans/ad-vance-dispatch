@@ -41,13 +41,16 @@ deploy/deploy.sh        setup (one-off infrastructure) and deploy
 ## Getting started
 
 ```
-python3 -m venv .venv
-.venv/bin/pip install -e '.[test]'
-.venv/bin/pytest
+python3.14 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install --no-deps -e .
+pytest
 ```
 
-Local Python may be newer than 3.11; the code stays 3.11-compatible because the image is
-`python:3.11-slim`.
+`requirements.txt` pins every package to an exact version. The image (`python:3.14-slim`)
+installs from the same file, so local runs and the job use identical versions. To upgrade a
+package, change its pin, reinstall, run the tests, and rebuild the image.
 
 ## How to add a template
 
