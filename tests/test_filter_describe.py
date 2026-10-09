@@ -34,3 +34,11 @@ def test_value_lists_join_with_commas_and_or():
 def test_no_filters_says_nothing():
     """A template with no global filters adds no footer lines."""
     assert describe_filter_set(FilterSet()) == []
+
+
+def test_affiliation_kind_reads_through_its_noun():
+    """The affiliation kind key has no phrasing of its own, so it reads through its noun."""
+    filter_set = FilterSet(include={'affiliation_kind': ['party', 'movement']})
+    assert describe_filter_set(filter_set) == [
+        'Covers only advertising whose affiliation kind is party or movement.',
+    ]

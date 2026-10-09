@@ -728,11 +728,14 @@ Add the dispatch calls to `src/app/services/admin-api.service.ts`.
 
 ## 13. Known limits and dependencies
 
-- **Seat margins** are parked as a separate back-end project, to be planned in
-  `AdVance-back-end/plans/`: a `advance_lookups` parquet of every federal and state seat with
-  current member, affiliation, margin and the date of the election they won, possibly sourced from
-  Wikipedia (the members refresh jobs already parse Wikipedia rosters). Top Seats hides the Margin
-  column until it exists.
+- **Seat margins** come from the back end's election results plan,
+  `AdVance-back-end/plans/2026-10-06-election-results/implementation_plan.md` (section 13 there
+  covers Dispatch, and its `CONTRACTS.md` section 10.2 holds the exact contract). Its
+  `caches/elections/margins/` cache in `advance_lookups` holds one row per current federal and state
+  lower house seat: sitting member, margin source, holder and opponent parties and the margin in
+  points above 50. Dispatch mounts it as the `election_margins` view, `ReferenceData` keys it by
+  `unique_electorate_id`, and Top Seats writes each seat's text with `margin_text`. Until that cache
+  is published the view is not mounted and Top Seats hides the Margin column (D21).
 - **Signed browser links expire after 7 days**, a hard limit of Google's V4 signing. The archive
   itself is deleted after 30 days.
 - **Signed browser links can be forwarded.** Anyone holding one can read that email for 7 days.

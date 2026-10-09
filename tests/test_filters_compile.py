@@ -10,6 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from dispatch.filters.compile import MATCH_EVERYTHING, compile_filters
+from dispatch.filters.registry import catalogue_entries
 from dispatch.models.template import FilterSet
 
 
@@ -152,6 +153,68 @@ def test_boolean_key(gold_connection):
     excluded = matching_ad_keys(gold_connection, [exclude(is_local_government_content=[True])])
     assert included == ['meta_V13']
     assert len(excluded) == STATE_ADVERT_COUNT - 1
+
+
+# ---------------------------------------------------------------- #
+# Affiliation kinds
+# ---------------------------------------------------------------- #
+
+# The state adverts whose creators sit on a party affiliation
+PARTY_AD_KEYS = [
+    'google_V11',
+    'meta_N01',
+    'meta_N02',
+    'meta_N03',
+    'meta_V01',
+    'meta_V02',
+    'meta_V03',
+    'meta_V04',
+    'meta_V12',
+]
+
+
+def test_affiliation_kind_party(gold_connection):
+    """Including party keeps the nine state adverts run on a party affiliation."""
+    ad_keys = matching_ad_keys(gold_connection, [include(affiliation_kind=['party'])])
+    assert ad_keys == PARTY_AD_KEYS
+
+
+def test_affiliation_kind_interest_family(gold_connection):
+    """Including interest_family keeps only the Institute of Public Affairs advert."""
+    ad_keys = matching_ad_keys(gold_connection, [include(affiliation_kind=['interest_family'])])
+    assert ad_keys == ['meta_V09']
+
+
+def test_affiliation_kind_exclude_keeps_unmapped(gold_connection):
+    """Excluding party keeps the movement, government, interest family and unmapped adverts."""
+    ad_keys = matching_ad_keys(gold_connection, [exclude(affiliation_kind=['party'])])
+    assert ad_keys == ['google_V10', 'meta_V05', 'meta_V06', 'meta_V07', 'meta_V08', 'meta_V09', 'meta_V13']
+
+
+def test_affiliation_kind_null_matches_unmapped(gold_connection):
+    """A null kind is an advert with no affiliation, or whose affiliation has no kind yet."""
+    ad_keys = matching_ad_keys(gold_connection, [include(affiliation_kind=[None])])
+    assert ad_keys == ['google_V10', 'meta_V06', 'meta_V07', 'meta_V13']
+
+
+def test_affiliation_kind_is_registered_as_select():
+    """The key compiles against the kind column, and the catalogue lists it as implemented."""
+    compiled = compile_filters([include(affiliation_kind=['movement'])])
+    assert 'adverts.creator_affiliation_kind' in compiled.sql
+
+    entries = catalogue_entries()
+    kind_entries = []
+    for entry in entries:
+        if entry['key'] == 'affiliation_kind':
+            kind_entries.append(entry)
+    assert kind_entries == [{
+        'key': 'affiliation_kind',
+        'kind': 'select',
+        'source': 'adverts.creator_affiliation_kind',
+        'description': kind_entries[0]['description'],
+        'implemented': True,
+        'value_type': 'text',
+    }]
 
 
 # ---------------------------------------------------------------- #

@@ -90,6 +90,21 @@ FILTER_KEYS = (
         noun='bias',
     ),
     FilterKey(
+        key='affiliation_kind',
+        kind=SELECT_KIND,
+        source='adverts.creator_affiliation_kind',
+        description=(
+            'Affiliation kinds: party, movement, independent, government or interest_family. '
+            'Null is an advert whose creator has no affiliation, or whose affiliation has no '
+            'kind yet: a locked affiliation (such as aff_greens or aff_one_nation) until an '
+            'admin sets its kind, and adverts not reprocessed since kinds were added. '
+            'So a party filter can leave out some party money.'
+        ),
+        implemented=True,
+        column='creator_affiliation_kind',
+        noun='affiliation kind',
+    ),
+    FilterKey(
         key='creator_id',
         kind=SELECT_KIND,
         source='adverts.creator_id',

@@ -154,6 +154,7 @@ unmapped (for `theme`, an advert with no themes). `affiliation_id` values widen 
 | `classification` | select | `adverts.creator_classification` | yes |
 | `affiliation_id` | select | `adverts.creator_affiliation_id` | yes |
 | `bias` | select | `adverts.creator_affiliation_bias` | yes |
+| `affiliation_kind` | select | `adverts.creator_affiliation_kind` (`party`, `movement`, `independent`, `government`, `interest_family`) | yes |
 | `creator_id` | select | `adverts.creator_id` | yes |
 | `datasource` | select | `adverts.datasource` | yes |
 | `approach` | select | `adverts.approach` | yes |

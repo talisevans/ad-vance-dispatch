@@ -150,12 +150,19 @@ def test_margin_column_hidden_without_a_seat_lookup(gold_connection, reference):
 
 def test_margin_column_shows_when_a_seat_lookup_exists(gold_connection, reference):
     """Once a lookup supplies margins, the column shows, blank for seats it lacks."""
-    with_margins = dataclasses.replace(reference, seat_margins={'state_20001': 'LIB 4.0%'})
+    kew_margin = {
+        'unique_electorate_id': 'state_20001',
+        'margin_source': 'result',
+        'holder_party_name': 'Liberal',
+        'opponent_party_name': 'Labor',
+        'margin_percent': 4.0,
+    }
+    with_margins = dataclasses.replace(reference, seat_margins={'state_20001': kew_margin})
     result = build_seats(gold_connection, with_margins)
     rows = rows_by_seat(result)
 
     assert result.variables['show_margin'] is True
-    assert rows['Kew']['margin'] == 'LIB 4.0%'
+    assert rows['Kew']['margin'] == 'Liberal vs Labor 4.0%'
     assert rows['Hawthorn']['margin'] == ''
 
 

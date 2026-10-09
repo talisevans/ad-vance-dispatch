@@ -65,6 +65,10 @@ centrist 0 `#94a3b8`, right 1 `#3b82f6`, extreme right 2 `#1e40af`. `bias_slots(
 | aff_fed_government | Australian Government | null | none | government |
 | aff_socialist_alliance | Socialist Alliance | extreme left | none | **no adverts at all**: use it for a zero-spend card |
 
+Gold carries each affiliation's kind on the advert as `creator_affiliation_kind`: `party` for
+Labor, Liberal (both ids), Greens, One Nation and Socialist Alliance; `movement` for Climate 200;
+`interest_family` for the IPA; `government` for both governments; null for unmapped creators.
+
 Creators with no affiliation (unmapped): `c_jane_smith` (Jane Smith for Kew, political participant),
 `c_bob_lee` (Bob Lee Independent, political participant), `c_concerned` (Concerned Citizens of
 Brunswick, interest group), `c_fair_go` (Fair Go Alliance, federal interest group).

@@ -5,18 +5,20 @@ The work runs in this order:
 
   1. Decide where the parquet comes from. A local directory (an argument, or
      the `DISPATCH_GOLD_DIR` and `DISPATCH_LOOKUPS_DIR` environment variables)
-     is read in place; otherwise the seven gold tables and three lookup caches
+     is read in place; otherwise the seven gold tables and four lookup caches
      are downloaded from their buckets.
   2. Mount one view per gold table over `read_parquet`, recovering the cohort
      `year` from the hive directory names.
   3. Mount the pre-apportioned views, copied from `AdVance-api/lib/duck.ts`.
-  4. Mount the lookup caches, newest row per key, internal columns hidden.
+  4. Mount the lookup caches, newest row per key, internal columns hidden. An
+     optional cache with no parquet yet (election margins) is left unmounted.
 
 Local layout, the same as the API's mirror under `/tmp/advance-gold`:
 
     <gold>/<table>/year=<YYYY>/*.parquet     six partitioned tables
     <gold>/electorates/*.parquet             electorates, not partitioned
     <lookups>/<cache>/**/*.parquet           affiliations, bias_definitions, content_creators
+    <lookups>/elections/margins/**/*.parquet election_margins, at its cache path
 
 When only the gold directory is given, lookups default to `<gold>/lookups`.
 """
@@ -100,7 +102,8 @@ def apportioned_view_sql(name):
 # The column every cache fragment carries, recording when the row was written
 WRITTEN_AT_COLUMN = '_cache_written_at'
 
-# The caches Dispatch reads: their key columns and the columns kept hidden
+# The caches Dispatch reads: their key columns, the columns kept hidden, and the
+# path under the lookups bucket and directory when it is not the view name
 LOOKUP_CACHES = {
     'affiliations': {
         'keys': ('affiliation_id',),
@@ -114,7 +117,50 @@ LOOKUP_CACHES = {
         'keys': ('creator_id',),
         'hidden': ('creator_manual_classified_by',),
     },
+    'election_margins': {
+        'keys': ('unique_electorate_id',),
+        'hidden': (),
+        'path': 'elections/margins',
+    },
 }
+
+# Caches that may not be published yet: left unmounted, rather than failing, when they hold no parquet
+OPTIONAL_LOOKUP_CACHES = ('election_margins',)
+
+
+def lookup_cache_path(name):
+    """Where a cache lives under the lookups prefix or directory: its path, else its view name."""
+    cache = LOOKUP_CACHES[name]
+    path = cache.get('path')
+
+    # A cache with no path of its own lives under its view name
+    if path is None:
+        return name
+
+    # Otherwise it lives under the path it declares, such as elections/margins
+    return path
+
+
+def lookup_cache_directory(lookups_directory, name):
+    """The local directory holding one cache's parquet."""
+    relative_path = lookup_cache_path(name)
+
+    # Turn the bucket-style path into folder names, then join them under the lookups directory
+    path_parts = relative_path.split('/')
+    return os.path.join(lookups_directory, *path_parts)
+
+
+def has_parquet(directory):
+    """Whether a directory, or any directory below it, holds a parquet file."""
+    if not os.path.isdir(directory):
+        return False
+
+    # Walk the tree until the first parquet file turns up
+    for _folder, _subfolders, file_names in os.walk(directory):
+        for file_name in file_names:
+            if file_name.endswith('.parquet'):
+                return True
+    return False
 
 
 def lookup_view_sql(name, directory):
@@ -174,7 +220,7 @@ class LocalGoldSource(GoldSource):
 
 
 class GcsGoldSource(GoldSource):
-    """Downloads gold and the three lookup caches from their buckets."""
+    """Downloads gold and the four lookup caches from their buckets."""
 
     def __init__(self, download_directory, storage_client=None):
         """Remember where to download to, and the storage client to use."""
@@ -208,7 +254,7 @@ class GcsGoldSource(GoldSource):
         return downloaded
 
     def prepare(self):
-        """Download the seven gold tables and the three caches, and return where they landed."""
+        """Download the seven gold tables and the four caches, and return where they landed."""
         gold_directory = os.path.join(self.download_directory, 'gold')
         lookups_directory = os.path.join(self.download_directory, 'lookups')
 
@@ -216,10 +262,11 @@ class GcsGoldSource(GoldSource):
         gold_count = self.download_prefix(GOLD_BUCKET, '', gold_directory, GOLD_STAGING_PREFIX)
         print(f'[gold] downloaded {gold_count} gold file(s)', flush=True)
 
-        # Each cache under its own directory
+        # Each cache under its own directory, at the same path it has in the bucket
         for cache_name in LOOKUP_CACHES:
-            prefix = f'{LOOKUPS_PREFIX}{cache_name}/'
-            destination = os.path.join(lookups_directory, cache_name)
+            cache_path = lookup_cache_path(cache_name)
+            prefix = f'{LOOKUPS_PREFIX}{cache_path}/'
+            destination = lookup_cache_directory(lookups_directory, cache_name)
             cache_count = self.download_prefix(LOOKUPS_BUCKET, prefix, destination)
             print(f'[gold] downloaded {cache_count} {cache_name} file(s)', flush=True)
 
@@ -271,9 +318,18 @@ def open_gold(directories):
     for view_name in APPORTIONED_VIEWS:
         connection.execute(apportioned_view_sql(view_name))
 
-    # The three lookup caches
+    # The lookup caches, skipping an optional one that is not published yet
     for cache_name in LOOKUP_CACHES:
-        cache_directory = os.path.join(directories.lookups, cache_name)
+        cache_directory = lookup_cache_directory(directories.lookups, cache_name)
+        is_optional = cache_name in OPTIONAL_LOOKUP_CACHES
+
+        # Warn when an optional cache is missing, so a briefing sent without it can be noticed
+        if is_optional and not has_parquet(cache_directory):
+            print(f'[gold] warning: optional lookup cache {cache_name} has no parquet; '
+                  f'it is not mounted and anything read from it is left blank', flush=True)
+            continue
+
+        # A required cache must be there
         if not os.path.isdir(cache_directory):
             raise FileNotFoundError(f'lookup cache not found: {cache_directory}')
         connection.execute(lookup_view_sql(cache_name, cache_directory))

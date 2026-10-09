@@ -11,9 +11,11 @@ The steps run in this order:
   3. Rank seats by total spend in the ranking window and keep the first `limit`.
   4. In each seat, rank spenders by spend in the ranking window, ties broken on
      spender key. Show the leader and the runner-up.
-  5. Show the Margin column only when a seat-margin lookup exists (D21).
+  5. Show the Margin column only when a seat-margin lookup exists (D21), with
+     each seat's margin written out by `margin_text`.
 """
 
+import math
 from dataclasses import dataclass, field
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -88,6 +90,24 @@ CHANNEL_MAXIMUM = 255
 # Bar widths are whole percentages of their cell
 FULL_WIDTH_PERCENT = 100
 MINIMUM_BAR_PERCENT = 1
+
+# The margin sources in the election_margins cache that carry a two-party margin
+MARGIN_SOURCES_WITH_FIGURES = ('pendulum', 'result')
+
+# The margin source for TAS and ACT seats, which elect several members each
+MARGIN_SOURCE_MULTI_MEMBER = 'multi_member'
+
+# What the Margin column reads for a multi-member seat
+MULTI_MEMBER_TEXT = 'multi-member'
+
+# A margin below this many points is shown to two decimal places, otherwise to one
+TWO_DECIMAL_MARGIN_LIMIT = 1
+
+# Units for rounding a margin in whole hundredths of a point, halves rounding up
+HUNDREDTHS_PER_POINT = 100
+HUNDREDTHS_PER_TENTH = 10
+HALF_A_TENTH_IN_HUNDREDTHS = 5
+TENTHS_PER_POINT = 10
 
 
 # ---------------------------------------------------------------- #
@@ -270,6 +290,74 @@ def bar_width(amount, largest):
     return width
 
 
+def has_margin_value(value):
+    """Whether a margin field holds something to show: not None, not blank, not NaN."""
+    # A missing value has nothing to show
+    if value is None:
+        return False
+
+    # Text counts only when it is more than spaces
+    if isinstance(value, str):
+        return value.strip() != ''
+
+    # A number counts unless it is NaN, which is how a missing number arrives from parquet
+    if isinstance(value, float):
+        return not math.isnan(value)
+
+    # Anything else, such as a whole number, is a value
+    return True
+
+
+def format_margin_percent(margin_percent):
+    """
+    A margin in points: two decimal places below 1, otherwise one, with halves rounded up.
+
+    Works in whole hundredths so the result matches the API's `formatMarginPercent`
+    exactly: 2.25 shows as 2.3 in both, never 2.2 in one and 2.3 in the other.
+    """
+    margin_number = float(margin_percent)
+
+    # Margins are stored to two decimals, so this is a whole number of hundredths
+    hundredths = int(round(margin_number * HUNDREDTHS_PER_POINT))
+
+    # A margin under one point keeps two decimals, so a very close seat is not shown as 0.0
+    is_close_margin = margin_number < TWO_DECIMAL_MARGIN_LIMIT
+    if is_close_margin:
+        return f'{hundredths / HUNDREDTHS_PER_POINT:.2f}'
+
+    # Any wider margin shows one decimal, a half rounding up
+    tenths = (hundredths + HALF_A_TENTH_IN_HUNDREDTHS) // HUNDREDTHS_PER_TENTH
+    return f'{tenths / TENTHS_PER_POINT:.1f}'
+
+
+def margin_text(row):
+    """What the Margin column reads for one seat's election_margins row, for example "Labor vs Greens 1.9%"."""
+    # A seat the lookup does not hold reads blank
+    if row is None:
+        return ''
+
+    # A TAS or ACT seat has no single two-party margin
+    margin_source = row.get('margin_source')
+    if margin_source == MARGIN_SOURCE_MULTI_MEMBER:
+        return MULTI_MEMBER_TEXT
+
+    # Only a pendulum or a result carries a margin; none and anything else read blank
+    if margin_source not in MARGIN_SOURCES_WITH_FIGURES:
+        return ''
+
+    # The holder, the opponent and the margin must all be present
+    holder = row.get('holder_party_name')
+    opponent = row.get('opponent_party_name')
+    margin_percent = row.get('margin_percent')
+    for value in (holder, opponent, margin_percent):
+        if not has_margin_value(value):
+            return ''
+
+    # Name the pair, holder first, then the margin as a percentage
+    formatted = format_margin_percent(margin_percent)
+    return f'{holder} vs {opponent} {formatted}%'
+
+
 def seat_row(rank, seat, params, margins, largest):
     """One table row: rank, seat, margin, leader, runner-up and a total with a bar per window."""
     spenders = ranked_spenders(seat, params.rank_by_window)
@@ -281,7 +369,8 @@ def seat_row(rank, seat, params, margins, largest):
     # The margin when the lookup has this seat, blank otherwise
     margin = ''
     if margins is not None:
-        margin = margins.get(seat.seat_id, '')
+        margin_row = margins.get(seat.seat_id)
+        margin = margin_text(margin_row)
 
     # One total per window, with a bar in the leader's colour
     totals = []

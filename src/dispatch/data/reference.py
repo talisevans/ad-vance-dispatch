@@ -1,9 +1,10 @@
 """
 Reference data every section reads: bias definitions, affiliations, creators,
-their colours, and the merges between affiliations.
+their colours, the merges between affiliations, and each seat's margin.
 
 The data is read once from the lookup cache views (`bias_definitions`,
-`affiliations`, `content_creators`) that `data/gold.py` mounts. Colours follow
+`affiliations`, `content_creators`, and `election_margins` when it is
+published) that `data/gold.py` mounts. Colours follow
 the dashboard exactly, so an email and the web app agree:
 
   1. An affiliation takes its stored `colour` when an admin has set one.
@@ -368,6 +369,37 @@ def read_creators(connection):
     return creators
 
 
+# The view holding one margin row per current lower house seat
+ELECTION_MARGINS_VIEW = 'election_margins'
+
+
+def view_exists(connection, view_name):
+    """Whether a view is mounted on the connection."""
+    # Count the views with this name in DuckDB's own list of views
+    cursor = connection.execute(
+        'SELECT count(*) FROM duckdb_views() WHERE view_name = $view_name',
+        {'view_name': view_name},
+    )
+    view_count = cursor.fetchone()[0]
+    return view_count > 0
+
+
+def read_seat_margins(connection):
+    """Read every seat's margin row, keyed by unique electorate id. Empty when the view is not mounted."""
+    # No view means no margins were published, so every seat reads blank
+    if not view_exists(connection, ELECTION_MARGINS_VIEW):
+        return {}
+
+    # Every row of the view
+    rows = read_rows(connection, f'SELECT * FROM {ELECTION_MARGINS_VIEW}')
+
+    # Keep the whole row under its seat id
+    seat_margins = {}
+    for row in rows:
+        seat_margins[row['unique_electorate_id']] = row
+    return seat_margins
+
+
 # ---------------------------------------------------------------- #
 # The reference data
 # ---------------------------------------------------------------- #
@@ -379,16 +411,17 @@ class ReferenceData:
     affiliations: dict = field(default_factory=dict)
     creators: dict = field(default_factory=dict)
 
-    # Seat margins by unique electorate id, or None while no seat lookup is published
-    seat_margins: Optional[dict] = None
+    # Each seat's election_margins row by unique electorate id, empty while none is published
+    seat_margins: dict = field(default_factory=dict)
 
     @classmethod
     def load(cls, connection):
-        """Read the three lookup views from an open gold connection."""
+        """Read the lookup views from an open gold connection."""
         return cls(
             biases=read_bias_definitions(connection),
             affiliations=read_affiliations(connection),
             creators=read_creators(connection),
+            seat_margins=read_seat_margins(connection),
         )
 
     # ------------------------------------------------------------ #
@@ -485,11 +518,13 @@ class ReferenceData:
 
     def seat_margin_lookup(self):
         """
-        Margin text by unique electorate id, or None when no seat lookup exists.
+        Each seat's `election_margins` row by unique electorate id, or None when there are none.
 
-        The seat lookup (members and margins) is a separate back-end project and is
-        not published yet, so `load` leaves `seat_margins` empty and this answers
-        None. Top Seats hides its Margin column whenever this is None (D21).
+        The rows are the back end's `caches/elections/margins/` cache, one per current
+        lower house seat, holding the margin's source, the holder and opponent parties
+        and the margin in points above 50. Before that cache is published `load`
+        leaves `seat_margins` empty and this answers None. Top Seats hides its Margin
+        column whenever this is None (D21).
         """
         if not self.seat_margins:
             return None

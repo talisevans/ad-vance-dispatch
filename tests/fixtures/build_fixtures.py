@@ -74,6 +74,20 @@ AFFILIATIONS = [
     ('aff_socialist_alliance', 'Socialist Alliance', 'extreme left', None, None),
 ]
 
+# The kind of each affiliation, which gold carries on every advert as `creator_affiliation_kind`
+AFFILIATION_KINDS = {
+    'aff_labor': 'party',
+    'aff_liberal': 'party',
+    'aff_lib_old': 'party',
+    'aff_greens': 'party',
+    'aff_climate_200': 'movement',
+    'aff_one_nation': 'party',
+    'aff_ipa': 'interest_family',
+    'aff_vic_government': 'government',
+    'aff_fed_government': 'government',
+    'aff_socialist_alliance': 'party',
+}
+
 # An older row for the Greens, which the newest-row rule must hide
 STALE_AFFILIATION = ('aff_greens', 'Australian Greens (stale row)', 'left', None, None)
 
@@ -267,6 +281,7 @@ ADVERTS_SCHEMA = pyarrow.schema([
     ('creator_affiliation_id', pyarrow.string()),
     ('creator_affiliation', pyarrow.string()),
     ('creator_affiliation_bias', pyarrow.string()),
+    ('creator_affiliation_kind', pyarrow.string()),
     ('is_local_government_content', pyarrow.bool_()),
     ('geo_unattributed_weight', pyarrow.float64()),
     ('geo_overseas_weight', pyarrow.float64()),
@@ -342,13 +357,15 @@ def advert_row(advert):
     creator = creators_by_id()[advert.creator_id]
     _creator_id, creator_name, classification, affiliation_id = creator
 
-    # Gold carries the affiliation's name and bias; government and unmapped creators carry no bias
+    # Gold carries the affiliation's name, bias and kind; government and unmapped creators carry no bias
     affiliation_name = None
     bias = None
+    kind = None
     if affiliation_id is not None:
         affiliation = affiliations_by_id()[affiliation_id]
         affiliation_name = affiliation[1]
         bias = affiliation[2]
+        kind = AFFILIATION_KINDS[affiliation_id]
     if classification == 'government':
         bias = None
 
@@ -371,6 +388,7 @@ def advert_row(advert):
         'creator_affiliation_id': affiliation_id,
         'creator_affiliation': affiliation_name,
         'creator_affiliation_bias': bias,
+        'creator_affiliation_kind': kind,
         'is_local_government_content': advert.is_local_government_content,
         'geo_unattributed_weight': 0.0,
         'geo_overseas_weight': 0.0,
