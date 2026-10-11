@@ -8,9 +8,9 @@ The steps run in this order:
   3. Total the three headline groups: Left (position below 0), Centre and
      unmapped (position 0), Right (position above 0), and the grand total.
   4. Draw the half doughnut.
-  5. Return the legend items (grouped into rows of a few items each, so the
-     legend reads left to right), the headline totals, the note and the
-     plain-text line.
+  5. Return the legend items (biases under 1% of the total left out, and the
+     rest grouped into rows of a few items each, so the legend reads left to
+     right), the headline totals, the note and the plain-text line.
 """
 
 from dataclasses import dataclass
@@ -66,6 +66,9 @@ RIGHT_HEADLINE_COLOUR = '#003cb3'
 
 # How many legend items sit side by side before the legend wraps onto another row
 LEGEND_ITEMS_PER_ROW = 3
+
+# The smallest share of the total a bias needs to be listed in the legend
+LEGEND_MINIMUM_SHARE = 0.01
 
 
 # ---------------------------------------------------------------- #
@@ -219,15 +222,26 @@ def section_heading(context):
 
 
 def legend_rows(spends, total):
-    """One legend row per slot: swatch colour, display name, spend and share of the total."""
+    """
+    One legend row per slot: swatch colour, display name, spend and share of the total.
+
+    A slot under 1% of the total is left out. Its spend still counts in the
+    headline totals and the grand total.
+    """
     rows = []
     for spend in spends:
+        # Leave out a slot too small to matter
+        share = safe_share(spend.spend, total)
+        is_too_small = share < LEGEND_MINIMUM_SHARE
+        if is_too_small:
+            continue
+
         rows.append({
             'label': spend.label,
             'name': spend.name,
             'colour': spend.colour,
             'amount': spend.spend,
-            'share': safe_share(spend.spend, total),
+            'share': share,
         })
     return rows
 

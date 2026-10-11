@@ -44,17 +44,18 @@ def png_size(png):
 # ---------------------------------------------------------------- #
 
 def test_victorian_seven_day_split(gold_connection, reference):
-    """VIC 7 days: left $1,470, centrist $1,050, unmapped $665, right $980, laid out left to right."""
+    """
+    VIC 7 days: left $1,470, centrist $1,050, unmapped $665, right $980, laid out
+    left to right. Extreme left and extreme right have no spend, so the legend leaves them out.
+    """
     context = make_section_context(gold_connection, reference)
     result = build_section(bias_gauge, context, {'window_days': 7})
 
     assert legend_amounts(result) == [
-        ('extreme left', 0.0),
         ('left', 1470.0),
         ('centrist', 1050.0),
         ('unmapped', 665.0),
         ('right', 980.0),
-        ('extreme right', 0.0),
     ]
     assert result.variables['total'] == 4165.0
 
@@ -202,7 +203,7 @@ def test_legend_grid_with_a_short_last_row():
 
 def test_legend_renders_left_to_right(gold_connection, reference):
     """
-    VIC 7 days renders two centred legend tables of three items each, each item
+    VIC 7 days renders two centred legend tables, three items then one, each item
     with its swatch, name, spend and share.
     """
     context = make_section_context(gold_connection, reference)
@@ -213,13 +214,39 @@ def test_legend_renders_left_to_right(gold_connection, reference):
     assert html.count('align="center" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;"') == 2
 
     # Left's item: swatch, then name over bold spend and grey share
-    left_colour = result.variables['legend'][1]['colour']
+    left_colour = result.variables['legend'][0]['colour']
     assert f'bgcolor="{left_colour}"' in html
     expected_text = (
         'Left<br /><span style="font-weight: bold; color: #1a1a1a;">$1,470</span>&nbsp;&nbsp;'
         '<span style="color: #666666;">35%</span>'
     )
     assert expected_text in html
+
+
+def test_legend_leaves_out_biases_under_one_percent():
+    """Of $1,000, a $9 bias (0.9%) is left out, a $10 bias (1%) stays, and a $0 bias is left out."""
+    spends = [
+        bias_gauge.BiasSpend(label='left', name='Left', position=-1.0, colour='#ef4444', spend=981.0),
+        bias_gauge.BiasSpend(label='hard right', name='Hard right', position=1.5, colour='#0029a3', spend=9.0),
+        bias_gauge.BiasSpend(label='unmapped', name='Unmapped', position=0.0, colour='#d1d5db', spend=10.0),
+        bias_gauge.BiasSpend(label='extreme right', name='Extreme right', position=2.0, colour='#1e40af', spend=0.0),
+    ]
+    rows = bias_gauge.legend_rows(spends, 1000.0)
+
+    labels = []
+    for row in rows:
+        labels.append(row['label'])
+    assert labels == ['left', 'unmapped']
+
+
+def test_small_biases_still_count_in_the_headlines():
+    """A bias left out of the legend still adds to its headline group."""
+    spends = [
+        bias_gauge.BiasSpend(label='left', name='Left', position=-1.0, colour='#ef4444', spend=995.0),
+        bias_gauge.BiasSpend(label='hard right', name='Hard right', position=1.5, colour='#0029a3', spend=5.0),
+    ]
+    headlines = bias_gauge.headline_totals(spends)
+    assert headlines[2]['amount'] == 5.0
 
 
 def test_legend_rows_follow_the_slots(gold_connection, reference):

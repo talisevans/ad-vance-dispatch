@@ -4,12 +4,15 @@ order with unmapped straight after centrist, merges resolve, and the lookup
 views keep only the newest row per key.
 """
 
+import duckdb
+
 from dispatch.data.reference import (
     OTHER_COLOUR,
     UNMAPPED_COLOUR,
     derived_bias_colour,
     fallback_affiliation_colour,
     name_hash,
+    read_bias_definitions,
 )
 
 
@@ -113,3 +116,21 @@ def test_creator_names(reference):
     assert reference.creator_name('c_jane_smith') == 'Jane Smith for Kew'
     assert reference.creator_name('c_missing', 'Gold name') == 'Gold name'
     assert reference.creator_name('c_missing') == 'c_missing'
+
+
+def test_deleted_bias_is_left_out():
+    """A bias whose newest row has no name is deleted, so only the named biases are read."""
+    connection = duckdb.connect()
+    connection.execute(
+        'CREATE TABLE bias_definitions AS SELECT * FROM (VALUES '
+        "('extreme_left', NULL, -2.0, '#991b1b'), "
+        "('left', 'left', -1.0, '#ef4444'), "
+        "('hard_left', '  ', -1.5, '#b67111')"
+        ') AS rows(bias_id, bias_name, bias_position, bias_colour)'
+    )
+    definitions = read_bias_definitions(connection)
+
+    names = []
+    for definition in definitions:
+        names.append(definition.name)
+    assert names == ['left']

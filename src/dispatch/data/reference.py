@@ -296,7 +296,7 @@ def read_rows(connection, sql):
 
 
 def read_bias_definitions(connection):
-    """Read every bias definition, ordered by position then name."""
+    """Read every bias definition that is not deleted, ordered by position then name."""
     rows = read_rows(
         connection,
         'SELECT bias_id, bias_name, bias_position, bias_colour FROM bias_definitions',
@@ -304,6 +304,11 @@ def read_bias_definitions(connection):
 
     definitions = []
     for row in rows:
+        # A bias saved with no name has been deleted
+        is_deleted = not has_text(row['bias_name'])
+        if is_deleted:
+            continue
+
         position = float(row['bias_position'])
 
         # A stored colour wins; otherwise the colour comes from the position
