@@ -12,7 +12,8 @@ The steps run in this order:
   4. In each seat, rank spenders by spend in the ranking window, ties broken on
      spender key. Show the leader and the runner-up.
   5. Show the Margin column only when a seat-margin lookup exists (D21), with
-     each seat's margin written out by `margin_text`.
+     each seat's margin made by `margin_cell`: the holding side and its margin
+     as a badge tinted in the holder's affiliation colour.
 """
 
 import math
@@ -20,7 +21,7 @@ from dataclasses import dataclass, field
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from dispatch.data.reference import UNMAPPED_COLOUR, round_half_up
+from dispatch.data.reference import UNMAPPED_COLOUR, mix_colours, round_half_up
 from dispatch.formatting import format_money, safe_share
 from dispatch.sections.base import SectionResult
 
@@ -100,6 +101,20 @@ MARGIN_SOURCE_MULTI_MEMBER = 'multi_member'
 # What the Margin column reads for a multi-member seat
 MULTI_MEMBER_TEXT = 'multi-member'
 
+# A margin badge's background is the holder's colour blended this far towards white
+MARGIN_BADGE_TINT_TOWARD_WHITE = 0.82
+
+# A margin badge's text is the holder's colour blended this far towards black
+MARGIN_BADGE_SHADE_TOWARD_BLACK = 0.4
+
+# The colours a margin badge is blended towards
+WHITE = '#ffffff'
+BLACK = '#000000'
+
+# The neutral slate badge for a holder with no known colour
+NEUTRAL_BADGE_BACKGROUND = '#e2e8f0'
+NEUTRAL_BADGE_TEXT = '#334155'
+
 # A margin below this many points is shown to two decimal places, otherwise to one
 TWO_DECIMAL_MARGIN_LIMIT = 1
 
@@ -122,6 +137,24 @@ class Spender:
     is_unmapped: bool
     colour: str
     spend: dict = field(default_factory=dict)
+
+
+@dataclass
+class MarginCell:
+    """
+    What the Margin column shows for one seat.
+
+    A badge has a background and text colour. Plain text (multi-member) has
+    neither. An empty cell has blank text and no colours.
+    """
+    text: str = ''
+    background: str | None = None
+    text_colour: str | None = None
+
+    @property
+    def is_badge(self):
+        """Whether the cell is drawn as a coloured badge."""
+        return self.background is not None
 
 
 @dataclass
@@ -330,35 +363,76 @@ def format_margin_percent(margin_percent):
     return f'{tenths / TENTHS_PER_POINT:.1f}'
 
 
-def margin_text(row):
-    """What the Margin column reads for one seat's election_margins row, for example "Labor vs Greens 1.9%"."""
+def margin_holder(reference, row):
+    """
+    The holding side's name and colour for a margin row.
+
+    The affiliation in `holder_affiliation_id`, after merges, gives both when
+    the reference data holds it. Otherwise the name is `holder_party_name` and
+    the colour is None.
+    """
+    holder_affiliation_id = row.get('holder_affiliation_id')
+
+    # A holder linked to a known affiliation takes its display name and colour
+    if has_margin_value(holder_affiliation_id):
+        survivor_id = reference.resolve_affiliation_id(holder_affiliation_id)
+        affiliation = reference.affiliations.get(survivor_id)
+        if affiliation is not None:
+            name = affiliation.name
+            if not has_margin_value(name):
+                name = row.get('holder_party_name')
+            colour = reference.affiliation_colour(survivor_id)
+            return name, colour
+
+    # Any other holder is named as the margins cache names it, with no colour
+    return row.get('holder_party_name'), None
+
+
+def margin_badge_colours(holder_colour):
+    """A badge's background and text colours: a light tint and a dark shade of the holder's colour."""
+    # A holder with no colour gets the neutral slate badge
+    if holder_colour is None:
+        return NEUTRAL_BADGE_BACKGROUND, NEUTRAL_BADGE_TEXT
+
+    background = mix_colours(holder_colour, WHITE, MARGIN_BADGE_TINT_TOWARD_WHITE)
+    text_colour = mix_colours(holder_colour, BLACK, MARGIN_BADGE_SHADE_TOWARD_BLACK)
+    return background, text_colour
+
+
+def margin_cell(reference, row):
+    """What the Margin column shows for one seat's election_margins row, for example a "Labor 15.9%" badge."""
     # A seat the lookup does not hold reads blank
     if row is None:
-        return ''
+        return MarginCell()
 
-    # A TAS or ACT seat has no single two-party margin
+    # A TAS or ACT seat has no single two-party margin, so it reads as plain text
     margin_source = row.get('margin_source')
     if margin_source == MARGIN_SOURCE_MULTI_MEMBER:
-        return MULTI_MEMBER_TEXT
+        return MarginCell(text=MULTI_MEMBER_TEXT)
 
     # Only a pendulum or a result carries a margin; none and anything else read blank
     if margin_source not in MARGIN_SOURCES_WITH_FIGURES:
-        return ''
+        return MarginCell()
 
-    # The holder, the opponent and the margin must all be present
-    holder = row.get('holder_party_name')
-    opponent = row.get('opponent_party_name')
+    # The holder and the margin must both be present
+    holder_name, holder_colour = margin_holder(reference, row)
     margin_percent = row.get('margin_percent')
-    for value in (holder, opponent, margin_percent):
-        if not has_margin_value(value):
-            return ''
+    if not has_margin_value(holder_name):
+        return MarginCell()
+    if not has_margin_value(margin_percent):
+        return MarginCell()
 
-    # Name the pair, holder first, then the margin as a percentage
+    # The holder and the margin as a percentage, on a badge in the holder's colours
     formatted = format_margin_percent(margin_percent)
-    return f'{holder} vs {opponent} {formatted}%'
+    background, text_colour = margin_badge_colours(holder_colour)
+    return MarginCell(
+        text=f'{holder_name} {formatted}%',
+        background=background,
+        text_colour=text_colour,
+    )
 
 
-def seat_row(rank, seat, params, margins, largest):
+def seat_row(rank, seat, params, margins, largest, reference):
     """One table row: rank, seat, margin, leader, runner-up and a total with a bar per window."""
     spenders = ranked_spenders(seat, params.rank_by_window)
     leader = spenders[0]
@@ -367,10 +441,10 @@ def seat_row(rank, seat, params, margins, largest):
         runner_up = spenders[1]
 
     # The margin when the lookup has this seat, blank otherwise
-    margin = ''
+    margin = MarginCell()
     if margins is not None:
         margin_row = margins.get(seat.seat_id)
-        margin = margin_text(margin_row)
+        margin = margin_cell(reference, margin_row)
 
     # One total per window, with a bar in the leader's colour
     totals = []
@@ -436,12 +510,17 @@ def build(context, params):
 
     rows = []
     for index, seat in enumerate(shown_seats):
-        rows.append(seat_row(index + 1, seat, params, margins, largest))
+        rows.append(seat_row(index + 1, seat, params, margins, largest, context.reference))
 
-    # One column heading per window
+    # One column heading per window, flagging the window the seats are ranked by
     window_columns = []
     for days in params.windows:
-        window_columns.append({'days': days, 'label': f'{days}-day spend'})
+        is_ranking_window = days == params.rank_by_window
+        window_columns.append({
+            'days': days,
+            'label': f'{days}-day spend',
+            'is_ranking_window': is_ranking_window,
+        })
 
     ranking_window = context.window(params.rank_by_window)
     ranking_note = (

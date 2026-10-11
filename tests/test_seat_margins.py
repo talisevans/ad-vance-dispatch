@@ -1,10 +1,11 @@
 """
 Seat margin tests: the election_margins cache is mounted from its path in both
 the local and the download layouts, read into ReferenceData keyed by seat, and
-written out by Top Seats' `margin_text`. The Margin column hides when no margins
-are published.
+shown by Top Seats' `margin_cell` as the holder and margin on a badge tinted in
+the holder's colour. The Margin column hides when no margins are published.
 """
 
+import dataclasses
 import os
 import shutil
 
@@ -25,13 +26,16 @@ from dispatch.sections.top_seats.top_seats import (
     Params,
     Seat,
     Spender,
+    NEUTRAL_BADGE_BACKGROUND,
+    NEUTRAL_BADGE_TEXT,
+    MarginCell,
     format_margin_percent,
-    margin_text,
+    margin_cell,
     seat_row,
 )
 from tests.conftest import FIXTURE_GOLD_DIRECTORY, FIXTURE_LOOKUPS_DIRECTORY
 from tests.test_section_partials import render_for
-from tests.test_section_top_seats import build_seats, rows_by_seat
+from tests.test_section_top_seats import build_seats, render_top_seats, rows_by_seat
 
 
 # ---------------------------------------------------------------- #
@@ -44,30 +48,43 @@ HAWTHORN_ID = 'state_20002'
 BRUNSWICK_ID = 'state_20003'
 
 
-def margin_row(margin_source, holder=None, opponent=None, margin_percent=None):
-    """One election_margins row with the fields margin_text reads."""
+# The badge colours for the fixture's Labor (#dc2626), Liberal (#1e3a8a) and Greens (#22c55e)
+LABOR_BADGE = ('#f9d8d8', '#841717')
+LIBERAL_BADGE = ('#d7dcea', '#122353')
+GREENS_BADGE = ('#d7f5e2', '#147638')
+NEUTRAL_BADGE = (NEUTRAL_BADGE_BACKGROUND, NEUTRAL_BADGE_TEXT)
+
+
+def margin_row(margin_source, holder=None, opponent=None, margin_percent=None, holder_affiliation_id=None):
+    """One election_margins row with the fields margin_cell reads."""
     return {
         'unique_electorate_id': KEW_ID,
         'margin_source': margin_source,
         'holder_party_name': holder,
+        'holder_affiliation_id': holder_affiliation_id,
         'opponent_party_name': opponent,
         'margin_percent': margin_percent,
     }
+
+
+def badge(cell):
+    """A margin cell as (text, background, text colour)."""
+    return (cell.text, cell.background, cell.text_colour)
 
 
 # The rows written to the cache fixture: Kew twice (the later write wins) and Brunswick once
 MARGIN_PARQUET_SQL = """
 COPY (
     SELECT * FROM (VALUES
-        ('state_20001', 'Kew', 'VIC', 'VIC', 'result', 'Labor', 'Liberal', 9.9::DOUBLE,
+        ('state_20001', 'Kew', 'VIC', 'VIC', 'result', 'Labor', 'aff_labor', 'Liberal', 9.9::DOUBLE,
          TIMESTAMPTZ '2026-10-01 00:00:00+00'),
-        ('state_20001', 'Kew', 'VIC', 'VIC', 'pendulum', 'Liberal', 'Labor', 0.4::DOUBLE,
+        ('state_20001', 'Kew', 'VIC', 'VIC', 'pendulum', 'Liberal', 'aff_lib_old', 'Labor', 0.4::DOUBLE,
          TIMESTAMPTZ '2026-10-07 00:00:00+00'),
-        ('state_20003', 'Brunswick', 'VIC', 'VIC', 'pendulum', 'Greens', 'Labor', 7.3::DOUBLE,
+        ('state_20003', 'Brunswick', 'VIC', 'VIC', 'pendulum', 'Greens', 'aff_greens', 'Labor', 7.3::DOUBLE,
          TIMESTAMPTZ '2026-10-07 00:00:00+00')
     ) AS margins(
         unique_electorate_id, electorate_name, jurisdiction, state, margin_source,
-        holder_party_name, opponent_party_name, margin_percent, _cache_written_at
+        holder_party_name, holder_affiliation_id, opponent_party_name, margin_percent, _cache_written_at
     )
 ) TO '{target}' (FORMAT parquet)
 """
@@ -102,58 +119,87 @@ def margins_connection(lookups_with_margins):
 
 
 # ---------------------------------------------------------------- #
-# margin_text
+# margin_cell
 # ---------------------------------------------------------------- #
 
-def test_pendulum_margin_names_both_parties():
-    """A pendulum row reads holder vs opponent with the margin."""
-    row = margin_row('pendulum', 'Greens', 'Labor', 7.3)
-    assert margin_text(row) == 'Greens vs Labor 7.3%'
+def test_pendulum_margin_shows_the_holder_on_its_colour(reference):
+    """A pendulum row reads holder and margin only, on a badge tinted in the holder's colour."""
+    row = margin_row('pendulum', 'Greens', 'Labor', 7.3, holder_affiliation_id='aff_greens')
+    assert badge(margin_cell(reference, row)) == ('Greens 7.3%', *GREENS_BADGE)
 
 
-def test_result_margin_names_both_parties():
-    """A result row reads the same way as a pendulum row."""
-    row = margin_row('result', 'Labor', 'Greens', 1.9)
-    assert margin_text(row) == 'Labor vs Greens 1.9%'
+def test_result_margin_reads_the_same_way(reference):
+    """A result row reads the same way as a pendulum row, with no opponent named."""
+    row = margin_row('result', 'Labor', 'Greens', 15.9, holder_affiliation_id='aff_labor')
+    assert badge(margin_cell(reference, row)) == ('Labor 15.9%', *LABOR_BADGE)
 
 
-def test_multi_member_seat_reads_multi_member():
-    """A TAS or ACT seat reads multi-member, with no parties or figure."""
-    row = margin_row('multi_member')
-    assert margin_text(row) == 'multi-member'
+def test_badge_is_a_tint_and_a_shade_of_the_holder_colour(reference):
+    """Labor's #dc2626 gives a #f9d8d8 background (82% towards white) and #841717 text (40% towards black)."""
+    row = margin_row('result', 'Labor', 'Liberal', 2.0, holder_affiliation_id='aff_labor')
+    cell = margin_cell(reference, row)
+    assert cell.is_badge is True
+    assert cell.background == '#f9d8d8'
+    assert cell.text_colour == '#841717'
 
 
-def test_none_source_reads_blank():
+def test_merged_holder_takes_its_survivor_name_and_colour(reference):
+    """A holder recorded under aff_lib_old shows as Liberal, in Liberal's colours."""
+    row = margin_row('pendulum', 'Liberal Party (Victorian Division)', 'Labor', 4.0,
+                     holder_affiliation_id='aff_lib_old')
+    assert badge(margin_cell(reference, row)) == ('Liberal 4.0%', *LIBERAL_BADGE)
+
+
+def test_holder_without_an_affiliation_gets_a_slate_badge(reference):
+    """No holder_affiliation_id: the party name from the cache, on the neutral slate badge."""
+    row = margin_row('result', 'Independent', 'Liberal', 3.2)
+    assert badge(margin_cell(reference, row)) == ('Independent 3.2%', *NEUTRAL_BADGE)
+
+
+def test_holder_with_an_unknown_affiliation_gets_a_slate_badge(reference):
+    """An id the reference data does not hold: the party name from the cache, on slate."""
+    row = margin_row('result', 'Animal Justice', 'Labor', 5.5, holder_affiliation_id='aff_not_held')
+    assert badge(margin_cell(reference, row)) == ('Animal Justice 5.5%', *NEUTRAL_BADGE)
+
+
+def test_multi_member_seat_reads_multi_member_without_a_badge(reference):
+    """A TAS or ACT seat reads multi-member as plain text, with no badge colours."""
+    cell = margin_cell(reference, margin_row('multi_member'))
+    assert badge(cell) == ('multi-member', None, None)
+    assert cell.is_badge is False
+
+
+def test_none_source_reads_blank(reference):
     """A seat with no pendulum and no result reads blank."""
-    row = margin_row('none')
-    assert margin_text(row) == ''
+    assert margin_cell(reference, margin_row('none')) == MarginCell()
 
 
-def test_seat_missing_from_the_lookup_reads_blank():
+def test_seat_missing_from_the_lookup_reads_blank(reference):
     """No row at all reads blank."""
-    assert margin_text(None) == ''
+    assert margin_cell(reference, None) == MarginCell()
 
 
-def test_missing_part_reads_blank():
-    """A pendulum or result row lacking a party or the figure reads blank."""
-    assert margin_text(margin_row('result', None, 'Labor', 2.0)) == ''
-    assert margin_text(margin_row('result', 'Labor', '', 2.0)) == ''
-    assert margin_text(margin_row('pendulum', 'Labor', 'Liberal', None)) == ''
-    assert margin_text(margin_row('pendulum', 'Labor', 'Liberal', float('nan'))) == ''
+def test_missing_part_reads_blank(reference):
+    """A pendulum or result row lacking the holder or the figure reads blank; the opponent is not needed."""
+    assert margin_cell(reference, margin_row('result', None, 'Labor', 2.0)) == MarginCell()
+    assert margin_cell(reference, margin_row('result', '', 'Labor', 2.0)) == MarginCell()
+    assert margin_cell(reference, margin_row('pendulum', 'Labor', 'Liberal', None)) == MarginCell()
+    assert margin_cell(reference, margin_row('pendulum', 'Labor', 'Liberal', float('nan'))) == MarginCell()
+    assert margin_cell(reference, margin_row('result', 'Labor', None, 2.0)).text == 'Labor 2.0%'
 
 
-def test_two_decimals_below_one_point():
+def test_two_decimals_below_one_point(reference):
     """Below 1 point the margin shows two decimal places."""
-    assert margin_text(margin_row('result', 'Independent', 'Liberal', 0.01)) == 'Independent vs Liberal 0.01%'
-    assert margin_text(margin_row('result', 'Labor', 'Liberal', 0.5)) == 'Labor vs Liberal 0.50%'
-    assert margin_text(margin_row('result', 'Labor', 'Liberal', 0.99)) == 'Labor vs Liberal 0.99%'
+    assert margin_cell(reference, margin_row('result', 'Independent', 'Liberal', 0.01)).text == 'Independent 0.01%'
+    assert margin_cell(reference, margin_row('result', 'Labor', 'Liberal', 0.5)).text == 'Labor 0.50%'
+    assert margin_cell(reference, margin_row('result', 'Labor', 'Liberal', 0.99)).text == 'Labor 0.99%'
 
 
-def test_one_decimal_from_one_point():
+def test_one_decimal_from_one_point(reference):
     """From 1 point up the margin shows one decimal place."""
-    assert margin_text(margin_row('result', 'Labor', 'Liberal', 1.0)) == 'Labor vs Liberal 1.0%'
-    assert margin_text(margin_row('result', 'Labor', 'Liberal', 1.04)) == 'Labor vs Liberal 1.0%'
-    assert margin_text(margin_row('result', 'Labor', 'Liberal', 12.36)) == 'Labor vs Liberal 12.4%'
+    assert margin_cell(reference, margin_row('result', 'Labor', 'Liberal', 1.0)).text == 'Labor 1.0%'
+    assert margin_cell(reference, margin_row('result', 'Labor', 'Liberal', 1.04)).text == 'Labor 1.0%'
+    assert margin_cell(reference, margin_row('result', 'Labor', 'Liberal', 12.36)).text == 'Labor 12.4%'
 
 
 # ---------------------------------------------------------------- #
@@ -311,9 +357,9 @@ def test_name_based_seat_id_joins_its_margin(tmp_path):
     largest = {7: 100.0, 28: 400.0}
 
     # The seat's Margin cell is filled from the row with the matching id
-    row = seat_row(1, seat, params, margins, largest)
+    row = seat_row(1, seat, params, margins, largest, reference)
     assert row['seat_id'] == NAME_BASED_KEW_ID
-    assert row['margin'] == 'Liberal vs Labor 3.2%'
+    assert badge(row['margin']) == ('Liberal 3.2%', *NEUTRAL_BADGE)
 
 
 # ---------------------------------------------------------------- #
@@ -327,8 +373,9 @@ def test_top_seats_writes_each_seats_margin(margins_connection):
     rows = rows_by_seat(result)
 
     assert result.variables['show_margin'] is True
-    assert rows['Kew']['margin'] == 'Liberal vs Labor 0.40%'
-    assert rows['Hawthorn']['margin'] == ''
+    assert badge(rows['Kew']['margin']) == ('Liberal 0.40%', *LIBERAL_BADGE)
+    assert badge(rows['Brunswick']['margin']) == ('Greens 7.3%', *GREENS_BADGE)
+    assert rows['Hawthorn']['margin'] == MarginCell()
 
 
 def test_top_seats_hides_the_column_without_margins(gold_connection, reference):
@@ -337,11 +384,11 @@ def test_top_seats_hides_the_column_without_margins(gold_connection, reference):
     rows = rows_by_seat(result)
 
     assert result.variables['show_margin'] is False
-    assert rows['Kew']['margin'] == ''
+    assert rows['Kew']['margin'] == MarginCell()
 
 
 def test_margin_reaches_the_rendered_email(margins_connection):
-    """The Margin heading and each seat's text appear in the rendered email."""
+    """The Margin heading and each seat's badge, in its tint and shade, appear in the rendered email."""
     _built, output = render_for(margins_connection, {
         'start_date': '2026-08-01',
         'end_date': '2026-11-28',
@@ -351,7 +398,23 @@ def test_margin_reaches_the_rendered_email(margins_connection):
     html = output.email_html
 
     assert 'Margin' in html
-    assert 'Liberal vs Labor 0.40%' in html
+    assert 'vs Labor' not in html
+    kew_badge = (
+        'background-color: #d7dcea; color: #122353; font-size: 11px; line-height: 15px; '
+        'font-weight: bold;">Liberal 0.40%</span>'
+    )
+    assert kew_badge in html
+    assert 'color: #147638; font-size: 11px; line-height: 15px; font-weight: bold;">Greens 7.3%</span>' in html
+
+
+def test_multi_member_renders_as_plain_grey_text(gold_connection, reference):
+    """A multi-member seat shows small grey text with no badge in the rendered partial."""
+    kew_margin = margin_row('multi_member')
+    with_margins = dataclasses.replace(reference, seat_margins={KEW_ID: kew_margin})
+    html = render_top_seats(gold_connection, with_margins)
+
+    assert '<span style="font-size: 11px; line-height: 15px; color: #999999;">multi-member</span>' in html
+    assert 'border-radius: 4px' not in html
 
 
 # ---------------------------------------------------------------- #

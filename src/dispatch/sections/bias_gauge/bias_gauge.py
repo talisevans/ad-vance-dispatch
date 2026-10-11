@@ -8,7 +8,9 @@ The steps run in this order:
   3. Total the three headline groups: Left (position below 0), Centre and
      unmapped (position 0), Right (position above 0), and the grand total.
   4. Draw the half doughnut.
-  5. Return the legend rows, the headline totals, the note and the plain-text line.
+  5. Return the legend items (grouped into rows of a few items each, so the
+     legend reads left to right), the headline totals, the note and the
+     plain-text line.
 """
 
 from dataclasses import dataclass
@@ -35,7 +37,7 @@ DESCRIPTION = (
     'Spend in a recent window split by the political bias of each creator\'s affiliation, '
     'with Left, Centre and unmapped, and Right totals. Government advertising is always excluded.'
 )
-RENDERS = 'A half doughnut of spend by bias, three headline totals and a legend table.'
+RENDERS = 'A half doughnut of spend by bias, three headline totals and a legend laid out left to right.'
 PARTIAL = 'bias_gauge.html.j2'
 
 
@@ -61,6 +63,9 @@ RIGHT_LABEL = 'Right'
 LEFT_HEADLINE_COLOUR = '#b3001b'
 CENTRE_HEADLINE_COLOUR = '#555555'
 RIGHT_HEADLINE_COLOUR = '#003cb3'
+
+# How many legend items sit side by side before the legend wraps onto another row
+LEGEND_ITEMS_PER_ROW = 3
 
 
 # ---------------------------------------------------------------- #
@@ -227,6 +232,23 @@ def legend_rows(spends, total):
     return rows
 
 
+def legend_grid(items, items_per_row=LEGEND_ITEMS_PER_ROW):
+    """Split the legend items into rows of at most `items_per_row`, keeping their left to right order."""
+    grid = []
+    current_row = []
+    for item in items:
+        current_row.append(item)
+        row_is_full = len(current_row) == items_per_row
+        if row_is_full:
+            grid.append(current_row)
+            current_row = []
+
+    # A shorter last row holds whatever is left over
+    if current_row:
+        grid.append(current_row)
+    return grid
+
+
 def build(context, params):
     """Build the bias gauge: spend by bias in the window, as a half doughnut with totals and a legend."""
     window = context.window(params.window_days)
@@ -244,13 +266,18 @@ def build(context, params):
 
     gauge = draw_gauge(spends, total, params.window_days, sentence)
 
+    # The legend items, and the same items grouped into rows for the partial
+    legend = legend_rows(spends, total)
+    legend_grid_rows = legend_grid(legend)
+
     variables = {
         'heading': section_heading(context),
         'window_days': params.window_days,
         'window_sentence': window.sentence,
         'headlines': headlines,
         'total': total,
-        'legend': legend_rows(spends, total),
+        'legend': legend,
+        'legend_grid': legend_grid_rows,
     }
     summary = f'{section_heading(context)}, {params.window_days} days: {sentence}.'
     return SectionResult(

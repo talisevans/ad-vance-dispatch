@@ -8,6 +8,8 @@ from dispatch.charts.gauge import GAUGE_DISPLAY_HEIGHT, GAUGE_DISPLAY_WIDTH
 from dispatch.charts.style import DENSITY
 from dispatch.data.reference import UNMAPPED_COLOUR
 from dispatch.sections.bias_gauge import bias_gauge
+from dispatch.sections.bias_gauge.bias_gauge import legend_grid
+from tests.support.partial_render import render_partial
 from tests.support.section_context import build_section, make_section_context
 
 
@@ -177,3 +179,59 @@ def test_undefined_bias_follows_unmapped(reference):
 
     headlines = bias_gauge.headline_totals(spends)
     assert headlines[1]['amount'] == 5.0
+
+
+# ---------------------------------------------------------------- #
+# The legend layout
+# ---------------------------------------------------------------- #
+
+def test_legend_grid_wraps_after_three_items():
+    """Six items make two rows of three, in the same order."""
+    items = ['extreme left', 'left', 'centrist', 'unmapped', 'right', 'extreme right']
+    assert legend_grid(items) == [
+        ['extreme left', 'left', 'centrist'],
+        ['unmapped', 'right', 'extreme right'],
+    ]
+
+
+def test_legend_grid_with_a_short_last_row():
+    """Four items make a full row and a row of one; no items make no rows."""
+    assert legend_grid(['a', 'b', 'c', 'd']) == [['a', 'b', 'c'], ['d']]
+    assert legend_grid([]) == []
+
+
+def test_legend_renders_left_to_right(gold_connection, reference):
+    """
+    VIC 7 days renders two centred legend tables of three items each, each item
+    with its swatch, name, spend and share.
+    """
+    context = make_section_context(gold_connection, reference)
+    result = build_section(bias_gauge, context, {'window_days': 7})
+    html = render_partial(bias_gauge, result)
+
+    # One centred table per legend row
+    assert html.count('align="center" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;"') == 2
+
+    # Left's item: swatch, then name over bold spend and grey share
+    left_colour = result.variables['legend'][1]['colour']
+    assert f'bgcolor="{left_colour}"' in html
+    expected_text = (
+        'Left<br /><span style="font-weight: bold; color: #1a1a1a;">$1,470</span>&nbsp;&nbsp;'
+        '<span style="color: #666666;">35%</span>'
+    )
+    assert expected_text in html
+
+
+def test_legend_rows_follow_the_slots(gold_connection, reference):
+    """The grid holds the same legend items as the flat list, in the same order."""
+    context = make_section_context(gold_connection, reference)
+    result = build_section(bias_gauge, context, {'window_days': 7})
+
+    flattened = []
+    for legend_row in result.variables['legend_grid']:
+        for item in legend_row:
+            flattened.append(item['label'])
+    expected = []
+    for item in result.variables['legend']:
+        expected.append(item['label'])
+    assert flattened == expected

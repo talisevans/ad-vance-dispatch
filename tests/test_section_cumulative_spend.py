@@ -9,6 +9,7 @@ from dispatch.charts.lines import LINE_CHART_DISPLAY_HEIGHT
 from dispatch.charts.style import DENSITY, HALF_CHART_WIDTH
 from dispatch.data.reference import OTHER_COLOUR, UNMAPPED_COLOUR
 from dispatch.sections.cumulative_spend import cumulative_spend
+from dispatch.sections.cumulative_spend.cumulative_spend import CumulativeLine, labelled_line_names
 from tests.support.section_context import build_section, make_section_context
 
 
@@ -175,6 +176,39 @@ def test_two_half_width_charts(gold_connection, reference):
         'Cumulative spend by bias, 1 August to 1 October 2026: '
         'Left $9,220, Right $6,820, Centrist $1,800, Unmapped $1,040.'
     )
+
+
+def test_top_two_spenders_are_named_on_each_chart():
+    """With top 3, Other ($2,090) outranks Climate 200 but is never named; Labor and Liberal are."""
+    lines = [
+        CumulativeLine(name='Labor', colour='#dc2626', values=[0.0, 8370.0]),
+        CumulativeLine(name='Other', colour=OTHER_COLOUR, values=[0.0, 2090.0]),
+        CumulativeLine(name='Liberal', colour='#1e3a8a', values=[0.0, 5580.0]),
+        CumulativeLine(name='Climate 200', colour='#0f766e', values=[0.0, 1800.0]),
+        CumulativeLine(name='Unmapped', colour=UNMAPPED_COLOUR, values=[0.0, 1040.0]),
+    ]
+    assert labelled_line_names(lines) == ['Labor', 'Liberal']
+
+
+def test_grouped_lines_are_skipped_for_the_next_spender():
+    """When Other and Unmapped lead, the labels go to the two biggest named spenders."""
+    lines = [
+        CumulativeLine(name='Other', colour=OTHER_COLOUR, values=[0.0, 9000.0]),
+        CumulativeLine(name='Unmapped', colour=UNMAPPED_COLOUR, values=[0.0, 8000.0]),
+        CumulativeLine(name='Greens', colour='#22c55e', values=[0.0, 850.0]),
+        CumulativeLine(name='Labor', colour='#dc2626', values=[0.0, 300.0]),
+        CumulativeLine(name='Liberal', colour='#1e3a8a', values=[0.0, 0.0]),
+    ]
+    assert labelled_line_names(lines) == ['Greens', 'Labor']
+
+
+def test_lines_with_no_spend_are_never_named():
+    """A single line with spend gets the only label."""
+    lines = [
+        CumulativeLine(name='Left', colour='#b3001b', values=[0.0, 100.0]),
+        CumulativeLine(name='Right', colour='#003cb3', values=[0.0, 0.0]),
+    ]
+    assert labelled_line_names(lines) == ['Left']
 
 
 def test_start_after_window_end_draws_empty_charts(gold_connection, reference):

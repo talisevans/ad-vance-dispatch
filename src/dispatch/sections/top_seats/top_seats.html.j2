@@ -1,7 +1,9 @@
 {#- ---------------------------------------------------------------- #}
 {#- Top Seats: a ranked table of seats with leader, runner-up and a   #}
 {#- total per window. The Margin column shows only when a seat lookup #}
-{#- exists. Renders one <tr> of the 640px container table.            #}
+{#- exists. On a phone the runner-up and the windows other than the  #}
+{#- ranking window are hidden, so the table fits the screen.         #}
+{#- Renders one <tr> of the 640px container table.                   #}
 {#- ---------------------------------------------------------------- #}
 {%- set header_style = 'padding: 8px 6px; background-color: #002147; font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 14px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; color: #ffffff;' %}
 {%- set cell_style = 'padding: 8px 6px; border-bottom: 1px solid #e5e5e5; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 16px; color: #1a1a1a;' %}
@@ -19,15 +21,15 @@
 {#- The seats table #}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
 <tr>
-<td align="left" bgcolor="#002147" style="{{ header_style }}">#</td>
-<td align="left" bgcolor="#002147" style="{{ header_style }}">Seat</td>
+<td class="mobile-cell" align="left" bgcolor="#002147" style="{{ header_style }}">#</td>
+<td class="mobile-cell" align="left" bgcolor="#002147" style="{{ header_style }}">Seat</td>
 {%- if section.variables.show_margin %}
-<td align="left" bgcolor="#002147" style="{{ header_style }}">Margin</td>
+<td class="mobile-cell" align="left" bgcolor="#002147" style="{{ header_style }}">Margin</td>
 {%- endif %}
-<td align="left" bgcolor="#002147" style="{{ header_style }}">Leading spender</td>
-<td align="left" bgcolor="#002147" style="{{ header_style }}">Runner-up</td>
+<td class="mobile-cell" align="left" bgcolor="#002147" style="{{ header_style }}">Leading spender</td>
+<td class="hide-mobile" align="left" bgcolor="#002147" style="{{ header_style }}">Runner-up</td>
 {%- for column in section.variables.window_columns %}
-<td align="right" bgcolor="#002147" style="{{ header_style }}">{{ column.label }}</td>
+<td class="{% if column.is_ranking_window %}mobile-cell{% else %}hide-mobile{% endif %}" align="right" bgcolor="#002147" style="{{ header_style }}">{{ column.label }}</td>
 {%- endfor %}
 </tr>
 {%- for row in section.variables.rows %}
@@ -35,17 +37,23 @@
 <tr>
 
 {#- Rank and seat #}
-<td valign="top" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }}; font-weight: bold; color: #002147;">{{ row.rank }}</td>
-<td valign="top" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }};">{{ row.seat }}</td>
+<td class="mobile-cell" valign="top" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }}; font-weight: bold; color: #002147;">{{ row.rank }}</td>
+<td class="mobile-cell" valign="top" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }};">{{ row.seat }}</td>
 
 {#- Margin, when the seat lookup exists #}
 {%- if section.variables.show_margin %}
-<td valign="top" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }};">{{ row.margin }}</td>
+<td class="mobile-cell mobile-wrap" valign="top" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }}; white-space: nowrap;">
+{%- if row.margin.is_badge %}
+<span style="display: inline-block; padding: 2px 8px; border-radius: 4px; background-color: {{ row.margin.background }}; color: {{ row.margin.text_colour }}; font-size: 11px; line-height: 15px; font-weight: bold;">{{ row.margin.text }}</span>
+{%- elif row.margin.text %}
+<span style="font-size: 11px; line-height: 15px; color: #999999;">{{ row.margin.text }}</span>
+{%- endif %}
+</td>
 {%- endif %}
 
 {#- Leader and runner-up #}
 {%- for spender in [row.leader, row.runner_up] %}
-<td valign="top" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }};">
+<td class="{% if loop.first %}mobile-cell{% else %}hide-mobile{% endif %}" valign="top" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }};">
 {%- if spender is none %}
 <span style="color: #999999;">{{ section.variables.no_runner_up }}</span>
 {%- else %}
@@ -60,7 +68,7 @@
 
 {#- One total per window, with a bar in the leader's colour #}
 {%- for total in row.totals %}
-<td valign="top" align="right" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }}; font-weight: {% if total.is_ranking_window %}bold{% else %}normal{% endif %};">
+<td class="{% if total.is_ranking_window %}mobile-cell{% else %}hide-mobile{% endif %}" valign="top" align="right" bgcolor="{{ row_background }}" style="{{ cell_style }} background-color: {{ row_background }}; font-weight: {% if total.is_ranking_window %}bold{% else %}normal{% endif %};">
 {{ total.amount | money }}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
 <tr>

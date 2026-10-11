@@ -10,7 +10,8 @@ The steps run in this order:
   3. Left column: one cumulative line per bias, in bias colours, unmapped in grey.
   4. Right column: the top N affiliations by total (merged affiliations folded
      into their survivor), then Other (the rest), then Unmapped (no affiliation).
-  5. Under each chart, a table of name, swatch and total, highest first (D18).
+  5. Name the top two spenders at the ends of their lines, and put a table of
+     name, swatch and total under each chart, highest first (D18).
 """
 
 import datetime
@@ -69,6 +70,12 @@ WEEK_START_WEEKDAY = 0
 
 # The key unmapped affiliation spend is gathered under while adding up
 UNMAPPED_AFFILIATION_KEY = None
+
+# How many lines on each chart carry their name at their end
+LABELLED_LINE_COUNT = 2
+
+# Lines that gather several spenders together, and so are never named at their ends
+GROUPED_LINE_NAMES = (OTHER_LABEL, UNMAPPED_AFFILIATION_LABEL, bias_display_name(UNMAPPED_BIAS_LABEL))
 
 
 # ---------------------------------------------------------------- #
@@ -295,11 +302,37 @@ def totals_sentence(lines):
     return ', '.join(parts)
 
 
+def labelled_line_names(lines):
+    """The names of the top spenders' lines, highest first, skipping grouped lines and lines with no spend."""
+    names = []
+    for line in highest_first(lines):
+        enough_names = len(names) >= LABELLED_LINE_COUNT
+        if enough_names:
+            break
+        if line.name in GROUPED_LINE_NAMES:
+            continue
+        if line.total <= 0:
+            continue
+        names.append(line.name)
+    return names
+
+
 def draw_column(image_name, title, lines, dates, period_text):
-    """Draw one column's cumulative chart, with alt text naming every total."""
+    """Draw one column's cumulative chart, top spenders named at their line ends, with alt text naming every total."""
+    labelled_names = labelled_line_names(lines)
+
+    # One series per line, with an end label only on the top spenders
     series_list = []
     for line in lines:
-        series_list.append(LineSeries(label=line.name, colour=line.colour, values=line.values))
+        end_label = None
+        if line.name in labelled_names:
+            end_label = line.name
+        series_list.append(LineSeries(
+            label=line.name,
+            colour=line.colour,
+            values=line.values,
+            end_label=end_label,
+        ))
 
     alt = f'Cumulative spend {title.lower()}, {period_text}: {totals_sentence(lines)}.'
     return cumulative_line_chart(image_name, dates, series_list, alt)

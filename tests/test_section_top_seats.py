@@ -9,6 +9,8 @@ from pydantic import ValidationError
 
 from dispatch.models.template import FilterSet
 from dispatch.sections.top_seats import top_seats
+from dispatch.sections.top_seats.top_seats import MarginCell
+from tests.support.partial_render import render_partial
 from tests.support.section_context import (
     NO_GOVERNMENT,
     POLITICAL_PARTICIPANTS,
@@ -28,6 +30,12 @@ def build_seats(gold_connection, reference, extra_filter=None, params=None):
         filter_sets.append(extra_filter)
     context = make_section_context(gold_connection, reference, filter_sets=filter_sets)
     return build_section(top_seats, context, params)
+
+
+def render_top_seats(gold_connection, reference):
+    """Build Top Seats for the VIC state record and render its partial on its own."""
+    result = build_seats(gold_connection, reference)
+    return render_partial(top_seats, result)
 
 
 def rows_by_seat(result):
@@ -148,22 +156,58 @@ def test_margin_column_hidden_without_a_seat_lookup(gold_connection, reference):
     assert result.variables['show_margin'] is False
 
 
-def test_margin_column_shows_when_a_seat_lookup_exists(gold_connection, reference):
-    """Once a lookup supplies margins, the column shows, blank for seats it lacks."""
+def kew_margin_reference(reference):
+    """The fixture reference data with one Liberal-held margin for Kew, held under the merged aff_lib_old."""
     kew_margin = {
         'unique_electorate_id': 'state_20001',
         'margin_source': 'result',
-        'holder_party_name': 'Liberal',
+        'holder_party_name': 'Liberal Party (Victorian Division)',
+        'holder_affiliation_id': 'aff_lib_old',
         'opponent_party_name': 'Labor',
         'margin_percent': 4.0,
     }
-    with_margins = dataclasses.replace(reference, seat_margins={'state_20001': kew_margin})
-    result = build_seats(gold_connection, with_margins)
+    return dataclasses.replace(reference, seat_margins={'state_20001': kew_margin})
+
+
+def test_margin_column_shows_when_a_seat_lookup_exists(gold_connection, reference):
+    """Once a lookup supplies margins, the column shows a holder badge, blank for seats it lacks."""
+    result = build_seats(gold_connection, kew_margin_reference(reference))
     rows = rows_by_seat(result)
 
     assert result.variables['show_margin'] is True
-    assert rows['Kew']['margin'] == 'Liberal vs Labor 4.0%'
-    assert rows['Hawthorn']['margin'] == ''
+    assert rows['Kew']['margin'] == MarginCell(text='Liberal 4.0%', background='#d7dcea', text_colour='#122353')
+    assert rows['Hawthorn']['margin'] == MarginCell()
+
+
+def test_margin_badge_renders_in_the_partial(gold_connection, reference):
+    """Kew's cell is one badge with solid hex colours and no opponent; Hawthorn's cell is empty."""
+    html = render_top_seats(gold_connection, kew_margin_reference(reference))
+
+    expected_badge = (
+        '<span style="display: inline-block; padding: 2px 8px; border-radius: 4px; '
+        'background-color: #d7dcea; color: #122353; font-size: 11px; line-height: 15px; '
+        'font-weight: bold;">Liberal 4.0%</span>'
+    )
+    assert expected_badge in html
+    assert html.count('border-radius: 4px') == 1
+    assert 'vs Labor' not in html
+    assert 'rgba' not in html
+
+
+def test_phone_layout_hides_the_runner_up_and_other_windows(gold_connection, reference):
+    """On a phone only the 7-day column and the leader show; the runner-up and 28-day columns hide."""
+    html = render_top_seats(gold_connection, kew_margin_reference(reference))
+
+    # Headings: the ranking window stays, the runner-up and the 28-day window hide
+    assert '<td class="mobile-cell" align="right" bgcolor="#002147" style="' in html
+    assert 'class="hide-mobile" align="left" bgcolor="#002147"' in html
+    assert html.count('class="hide-mobile" align="right" bgcolor="#002147"') == 1
+
+    # Each of the three seat rows hides one runner-up cell and one 28-day total
+    assert html.count('class="hide-mobile" valign="top"') == 6
+
+    # The margin cell may wrap on a phone
+    assert 'class="mobile-cell mobile-wrap"' in html
 
 
 # ---------------------------------------------------------------- #

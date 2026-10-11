@@ -2,9 +2,11 @@
 The cumulative line chart: one line per series, rising week by week.
 
 The cumulative spend section draws two of these side by side (biases on the
-left, affiliations on the right), each 290px wide. Lines carry no end labels;
-the section puts a table of names and totals under each chart instead
-(decision D18), because labels crowd badly at half width.
+left, affiliations on the right), each 290px wide. A series with an end label
+has its name written just right of its last point, in its own colour. The
+plot area narrows to fit the widest label, and labels that would collide are
+pushed apart vertically. The section still puts a table of every name and
+total under each chart (decision D18), so only a few lines carry labels.
 
 The chart is a PNG at twice its display size, on white (see `charts/style.py`).
 """
@@ -12,8 +14,10 @@ The chart is a PNG at twice its display size, on white (see `charts/style.py`).
 from dataclasses import dataclass, field
 
 from dispatch.charts.style import (
+    BASE_DPI,
     HALF_CHART_WIDTH,
     INK_MUTED,
+    POINTS_PER_INCH,
     SERIES_LINE_WIDTH,
     SMALL_FONT_SIZE,
     chart_image,
@@ -52,6 +56,21 @@ DATE_LABEL_PAD = 6
 # What the chart says when there is nothing to draw
 EMPTY_MESSAGE = 'No spend in this period'
 
+# The longest end label in characters; a longer name is cut short and ends in an ellipsis
+END_LABEL_MAXIMUM_CHARACTERS = 14
+
+# The character a cut-short end label ends in
+ELLIPSIS = '\u2026'
+
+# The gap between a line's last point and its end label, in points
+END_LABEL_OFFSET_POINTS = 5
+
+# The space kept clear between an end label and the figure's right edge, in display pixels
+END_LABEL_EDGE_PADDING = 3
+
+# The smallest vertical gap between two end labels' centres, as extra pixels over a label's height
+END_LABEL_GAP_PADDING = 1
+
 
 # ---------------------------------------------------------------- #
 # Inputs
@@ -59,10 +78,15 @@ EMPTY_MESSAGE = 'No spend in this period'
 
 @dataclass
 class LineSeries:
-    """One line: its label, its colour and one cumulative value per point on the x axis."""
+    """
+    One line: its label, its colour and one cumulative value per point on the x axis.
+
+    `end_label` is the text written beside the line's last point, or None for no label.
+    """
     label: str
     colour: str
     values: list = field(default_factory=list)
+    end_label: str | None = None
 
 
 # ---------------------------------------------------------------- #
@@ -145,9 +169,165 @@ def draw_series(axes, series_list):
             )
 
 
-def cumulative_line_chart(name, dates, series_list, alt, display_width=HALF_CHART_WIDTH):
+# ---------------------------------------------------------------- #
+# End labels
+# ---------------------------------------------------------------- #
+
+def truncate_label(text, maximum_characters=END_LABEL_MAXIMUM_CHARACTERS):
+    """Cut a label to the maximum length, ending it in an ellipsis when it was cut."""
+    fits = len(text) <= maximum_characters
+    if fits:
+        return text
+
+    # Keep one character fewer than the maximum, so the ellipsis fits inside it
+    kept_text = text[:maximum_characters - 1].rstrip()
+    return kept_text + ELLIPSIS
+
+
+def spread_positions(positions, minimum_gap):
     """
-    Draw cumulative lines over a run of dates and return the chart as a ChartImage.
+    Push label heights apart so neighbours are at least `minimum_gap` apart.
+
+    `positions` are heights as a fraction of the plot (0 at the bottom, 1 at the
+    top). Returns the new heights in the same order as given. A pair that is
+    too close moves apart evenly about its middle; the result is then kept
+    inside the plot.
+    """
+    # Work through the labels from the lowest up
+    order = sorted(range(len(positions)), key=lambda index: positions[index])
+    spread = list(positions)
+
+    # Each label sits at least one gap above the one below it
+    for order_index in range(1, len(order)):
+        below_index = order[order_index - 1]
+        current_index = order[order_index]
+        lowest_allowed = spread[below_index] + minimum_gap
+        if spread[current_index] < lowest_allowed:
+            overlap = lowest_allowed - spread[current_index]
+            spread[below_index] -= overlap / 2
+            spread[current_index] += overlap / 2
+
+    # Keep the lowest label off the bottom, moving the whole stack up together
+    if order:
+        lowest_index = order[0]
+        below_bottom = 0.0 - spread[lowest_index]
+        if below_bottom > 0:
+            for index in range(len(spread)):
+                spread[index] += below_bottom
+
+    # Keep the highest label off the top, moving the whole stack down together
+    if order:
+        highest_index = order[-1]
+        above_top = spread[highest_index] - 1.0
+        if above_top > 0:
+            for index in range(len(spread)):
+                spread[index] -= above_top
+
+    return spread
+
+
+def place_end_labels(axes, series_list):
+    """Write each labelled series' name right of its last point, and return the label texts."""
+    labelled = []
+    for series in series_list:
+        if series.end_label is None:
+            continue
+        if not series.values:
+            continue
+        labelled.append(series)
+
+    if not labelled:
+        return []
+
+    # Each label's height as a fraction of the plot, from its last value
+    bottom, top = axes.get_ylim()
+    value_range = top - bottom
+    heights = []
+    for series in labelled:
+        last_value = series.values[-1]
+        heights.append((last_value - bottom) / value_range)
+
+    # Write each label at its line's height, just right of the last point
+    labels = []
+    for series, height in zip(labelled, heights):
+        last_position = len(series.values) - 1
+        label = axes.annotate(
+            truncate_label(series.end_label),
+            xy=(last_position, height),
+            xycoords=('data', 'axes fraction'),
+            xytext=(END_LABEL_OFFSET_POINTS, 0),
+            textcoords='offset points',
+            ha='left',
+            va='center',
+            fontsize=SMALL_FONT_SIZE,
+            fontweight='bold',
+            color=series.colour,
+            annotation_clip=False,
+        )
+        labels.append(label)
+
+    # Measure a label's height on the drawn figure, to set the smallest gap between labels
+    renderer = axes.figure.canvas.get_renderer()
+    tallest_label = 0.0
+    for label in labels:
+        label_height = label.get_window_extent(renderer).height
+        if label_height > tallest_label:
+            tallest_label = label_height
+    plot_height = axes.get_window_extent(renderer).height
+    minimum_gap = (tallest_label + END_LABEL_GAP_PADDING) / plot_height
+
+    # Move labels that would collide apart
+    spread_heights = spread_positions(heights, minimum_gap)
+    for label, series, height in zip(labels, labelled, spread_heights):
+        last_position = len(series.values) - 1
+        label.xy = (last_position, height)
+    return labels
+
+
+def widest_label_width(figure, labels):
+    """The width of the widest label in display pixels."""
+    renderer = figure.canvas.get_renderer()
+    widest = 0.0
+    for label in labels:
+        label_width = label.get_window_extent(renderer).width
+        if label_width > widest:
+            widest = label_width
+    return widest
+
+
+def fit_labels_on_the_right(figure, labels, point_count):
+    """Narrow the plot area so the widest end label ends just inside the figure's right edge."""
+    if not labels:
+        return
+
+    # The figure's width and the room the labels need, in display pixels
+    figure_width = figure.get_figwidth() * BASE_DPI
+    offset_pixels = END_LABEL_OFFSET_POINTS * BASE_DPI / POINTS_PER_INCH
+    label_room = offset_pixels + widest_label_width(figure, labels) + END_LABEL_EDGE_PADDING
+
+    # How far across the plot the last point sits, given the padding either side
+    last_position = point_count - 1
+    x_range = last_position + 2 * X_PADDING
+    last_point_share = (last_position + X_PADDING) / x_range
+
+    # The plot width that puts the last point exactly one label's room from the edge
+    left_pixels = PLOT_LEFT * figure_width
+    plot_width = (figure_width - label_room - left_pixels) / last_point_share
+    right = (left_pixels + plot_width) / figure_width
+
+    # Never widen the plot past its usual right edge
+    if right > PLOT_RIGHT:
+        right = PLOT_RIGHT
+    figure.subplots_adjust(right=right)
+
+
+# ---------------------------------------------------------------- #
+# The chart
+# ---------------------------------------------------------------- #
+
+def draw_cumulative_figure(dates, series_list, display_width=HALF_CHART_WIDTH):
+    """
+    Draw cumulative lines over a run of dates and return the matplotlib figure and axes.
 
     `dates` are the x axis points, oldest first. Each LineSeries holds one value
     per date. The y axis starts at zero and is labelled in short money.
@@ -178,4 +358,15 @@ def cumulative_line_chart(name, dates, series_list, alt, display_width=HALF_CHAR
         last_position = len(dates) - 1
         axes.set_xlim(-X_PADDING, last_position + X_PADDING)
 
+    # Name the labelled lines at their ends, with room on the right for the names
+    if has_spend and dates:
+        labels = place_end_labels(axes, series_list)
+        fit_labels_on_the_right(figure, labels, len(dates))
+
+    return figure, axes
+
+
+def cumulative_line_chart(name, dates, series_list, alt, display_width=HALF_CHART_WIDTH):
+    """Draw cumulative lines over a run of dates and return the chart as a ChartImage."""
+    figure, _axes = draw_cumulative_figure(dates, series_list, display_width)
     return chart_image(name, figure, display_width, LINE_CHART_DISPLAY_HEIGHT, alt)

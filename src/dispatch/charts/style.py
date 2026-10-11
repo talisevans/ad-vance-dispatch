@@ -41,6 +41,9 @@ BASE_DPI = 100
 # The saved resolution: twice the display resolution
 SAVE_DPI = BASE_DPI * DENSITY
 
+# Typographic points in one inch, to turn a size in points into display pixels
+POINTS_PER_INCH = 72
+
 # The width the email body allows, and the width of one column in a two-column row
 EMAIL_WIDTH = 640
 FULL_CHART_WIDTH = 580

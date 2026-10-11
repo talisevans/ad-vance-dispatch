@@ -15,7 +15,9 @@
 #      aws_ses secret, Cloud Scheduler (to delete its own trigger) and token
 #      creation on itself (to sign browser links).
 #   2. The invoker service account, advance-dispatch-invoker, that Scheduler
-#      triggers run as, with run.invoker on the job.
+#      triggers run as, with run.jobsExecutorWithOverrides on the job. Each
+#      trigger passes the record id as an argument override, which
+#      run.invoker alone does not allow.
 #   3. Grants to the API's service account, advance-api, so it can manage
 #      triggers, attach the invoker account to them, and run the job.
 #   4. The Artifact Registry repository, keeping the newest 2 images.
@@ -201,9 +203,9 @@ image_exists() {
     gcloud artifacts docker images describe "$LATEST_IMAGE" --project="$PROJECT_ID" >/dev/null 2>&1
 }
 
-# Let the invoker account start the job, and the API start it with argument overrides
+# Let the invoker account and the API both start the job with argument overrides
 grant_job_access() {
-    grant_job_role "serviceAccount:${INVOKER_ACCOUNT}" 'roles/run.invoker'
+    grant_job_role "serviceAccount:${INVOKER_ACCOUNT}" 'roles/run.jobsExecutorWithOverrides'
     grant_job_role "serviceAccount:${API_ACCOUNT}" 'roles/run.developer'
 }
 
