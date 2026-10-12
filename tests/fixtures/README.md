@@ -58,7 +58,8 @@ centrist 0 `#94a3b8`, right 1 `#3b82f6`, extreme right 2 `#1e40af`. `bias_slots(
 | aff_liberal | Liberal | right | none (party blue `#1e3a8a`) | |
 | aff_lib_old | Liberal Party (Victorian Division) | right | none | **superseded by aff_liberal** |
 | aff_greens | Greens | left | none (party green `#22c55e`) | a stale June row named "Australian Greens (stale row)" must be hidden |
-| aff_climate_200 | Climate 200 | centrist | `#0F766E` (read as `#0f766e`) | |
+| aff_climate_200 | Climate 200 | centrist | `#0F766E` (read as `#0f766e`) | **superseded by aff_community_independents** |
+| aff_community_independents | Teals | centrist | `#1C768C` (read as `#1c768c`) | |
 | aff_one_nation | One Nation | extreme right | none | NSW only |
 | aff_ipa | Institute of Public Affairs | right | none (fallback slot `#2563eb`) | interest group |
 | aff_vic_government | Victorian Government | null | none | government |
@@ -121,7 +122,7 @@ All dates are 2026 unless written in full.
 | unmapped | $665 | $1,040 |
 | right | $980 | $3,920 |
 
-Gauge headline (7 days): Left $1,470, Centre and unmapped $1,715, Right $980, total $4,165.
+Gauge headline (7 days): Left $1,470, Centre $1,715, Right $980, total $4,165.
 
 Worked check, 7-day left: Labor `meta_V01` 7 x $100 = $700, Labor `google_V11` 7 x $60 = $420,
 Greens `meta_V04` 7 x $50 = $350. Total $1,470.
@@ -140,7 +141,7 @@ Greens `meta_V04` 7 x $50 = $350. Total $1,470.
 
 By bias over the same range: left $9,220, right $6,820, centrist $1,800, unmapped $1,040.
 
-With `top_affiliations: 3` and merges resolved: Labor $8,370, Liberal $5,580, Climate 200 $1,800,
+With `top_affiliations: 3` and merges resolved: Labor $8,370, Liberal $5,580, Teals $1,800,
 Other (IPA + Greens) $2,090, Unmapped $1,040. Without merges, Liberal is $4,960 and Other is
 $2,710.
 
@@ -195,7 +196,7 @@ Cases worth a test:
 - **Unmapped independents not merged**: Jane Smith and Bob Lee are separate spenders at $210
   each, ordered `creator:c_bob_lee` before `creator:c_jane_smith`.
 - **Merged affiliation**: with merges resolved, Kew's Liberal is $420 over 7 days ($280 + $140)
-  and $1,680 over 28 days. Kew's leader is Climate 200 ($1,050) and runner-up Labor ($560) either
+  and $1,680 over 28 days. Kew's leader is Teals ($1,050) and runner-up Labor ($560) either
   way; the merge changes the Liberal figure, not the order.
 
 ### New South Wales state record
@@ -213,7 +214,7 @@ $1,750).
 Worked from the advert table above, asserted in `tests/test_section_*.py`.
 
 - **Bias gauge, federal national, 7 days, government dropped**: $6,860 less $3,500 government is
-  $3,360. Left $2,380, Centre and unmapped $140 (Fair Go Alliance), Right $840.
+  $3,360. Left $2,380, Centre $140 (Fair Go Alliance), Right $840.
 - **Bias gauge with no template filter at all**: still $4,165 for VIC over 7 days. Government's
   $1,400 has a null bias in gold, so without the section's own drop unmapped would read $2,065.
 - **Messaging cards, VIC, 28 days** (4 September to 1 October):

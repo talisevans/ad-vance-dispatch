@@ -61,17 +61,17 @@ def test_victorian_seven_day_split(gold_connection, reference):
 
 
 def test_headline_totals(gold_connection, reference):
-    """Left $1,470, Centre and unmapped $1,715 ($1,050 + $665), Right $980."""
+    """Left $1,470, Centre $1,715 ($1,050 centrist + $665 unmapped), Right $980."""
     context = make_section_context(gold_connection, reference)
     result = build_section(bias_gauge, context, {'window_days': 7})
 
     assert headline_amounts(result) == {
         'Left': 1470.0,
-        'Centre and unmapped': 1715.0,
+        'Centre': 1715.0,
         'Right': 980.0,
     }
     assert result.summary_lines == [
-        'Statewide spend, 7 days: Left $1,470, Centre and unmapped $1,715, Right $980, total $4,165.',
+        'Statewide spend, 7 days: Left $1,470, Centre $1,715, Right $980, total $4,165.',
     ]
 
 
@@ -143,7 +143,7 @@ def test_national_federal_gauge(gold_connection, reference):
 
     assert headline_amounts(result) == {
         'Left': 2380.0,
-        'Centre and unmapped': 140.0,
+        'Centre': 140.0,
         'Right': 840.0,
     }
     assert result.variables['heading'] == 'National spend'
@@ -163,7 +163,7 @@ def test_gauge_png_is_double_density_with_figures_in_alt(gold_connection, refere
     assert gauge.name == 'gauge'
     assert png_size(gauge.png) == (GAUGE_DISPLAY_WIDTH * DENSITY, GAUGE_DISPLAY_HEIGHT * DENSITY)
     assert gauge.alt == (
-        'Spend by bias over 7 days: Left $1,470, Centre and unmapped $1,715, Right $980, total $4,165.'
+        'Spend by bias over 7 days: Left $1,470, Centre $1,715, Right $980, total $4,165.'
     )
 
 

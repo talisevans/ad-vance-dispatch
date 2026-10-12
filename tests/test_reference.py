@@ -62,8 +62,8 @@ def test_derived_bias_colour_blends_between_stops():
 # ---------------------------------------------------------------- #
 
 def test_stored_colour_wins(reference):
-    """Climate 200's admin-set colour is used, lowercased."""
-    assert reference.affiliation_colour('aff_climate_200') == '#0f766e'
+    """The Teals admin-set colour is used, lowercased."""
+    assert reference.affiliation_colour('aff_community_independents') == '#1c768c'
 
 
 def test_unmapped_affiliation_is_grey(reference):

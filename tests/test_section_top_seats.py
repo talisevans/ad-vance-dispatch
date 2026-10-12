@@ -95,10 +95,10 @@ def test_limit_cuts_the_table(gold_connection, reference):
 # ---------------------------------------------------------------- #
 
 def test_kew_leader_and_runner_up(gold_connection, reference):
-    """Kew: Climate 200 leads with $1,050, Labor runs second with $560."""
+    """Kew: Teals (Climate 200 merged in) lead with $1,050, Labor runs second with $560."""
     kew = rows_by_seat(build_seats(gold_connection, reference))['Kew']
 
-    assert spender_figure(kew['leader']) == ('aff_climate_200', 'Climate 200', 1050.0)
+    assert spender_figure(kew['leader']) == ('aff_community_independents', 'Teals', 1050.0)
     assert spender_figure(kew['runner_up']) == ('aff_labor', 'Labor', 560.0)
 
 
@@ -225,7 +225,7 @@ def test_summary_lines(gold_connection, reference):
     result = build_seats(gold_connection, reference)
     assert result.summary_lines == [
         'Top seats by 7-day spend:',
-        '1. Kew: $2,450. Leader Climate 200 $1,050, runner-up Labor $560.',
+        '1. Kew: $2,450. Leader Teals $1,050, runner-up Labor $560.',
         '2. Brunswick: $700. Leader Greens $350, runner-up Labor $350.',
         '3. Hawthorn: $490. Leader Liberal $280, runner-up Labor $210.',
     ]

@@ -167,10 +167,10 @@ def test_plain_text_carries_every_section(victorian):
     """Each section adds its headline lines to the plain-text part."""
     _built, output = victorian
     text = output.plain_text
-    assert 'Statewide spend, 7 days: Left $1,470, Centre and unmapped $1,715, Right $980, total $4,165.' in text
+    assert 'Statewide spend, 7 days: Left $1,470, Centre $1,715, Right $980, total $4,165.' in text
     assert 'Cumulative spend since 1 August 2026: $18,880.' in text
     assert 'Liberal: $2,800, 20% compare and contrast, 80% negative.' in text
-    assert '1. Kew: $2,450. Leader Climate 200 $1,050, runner-up Labor $560.' in text
+    assert '1. Kew: $2,450. Leader Teals $1,050, runner-up Labor $560.' in text
 
 
 # ---------------------------------------------------------------- #

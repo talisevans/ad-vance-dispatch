@@ -35,7 +35,7 @@ from dispatch.sections.base import GOVERNMENT_CLASSIFICATION, SectionResult, gov
 TYPE_NAME = 'bias_gauge'
 DESCRIPTION = (
     'Spend in a recent window split by the political bias of each creator\'s affiliation, '
-    'with Left, Centre and unmapped, and Right totals. Government advertising is always excluded.'
+    'with Left, Centre (unmapped spend included) and Right totals. Government advertising is always excluded.'
 )
 RENDERS = 'A half doughnut of spend by bias, three headline totals and a legend laid out left to right.'
 PARTIAL = 'bias_gauge.html.j2'
@@ -165,7 +165,7 @@ def slot_spends(reference, totals):
 # ---------------------------------------------------------------- #
 
 def headline_totals(spends):
-    """Total spend Left (below 0), Centre and unmapped (at 0) and Right (above 0)."""
+    """Total spend Left (below 0), Centre (at 0, plus unmapped) and Right (above 0)."""
     left_total = 0.0
     centre_total = 0.0
     right_total = 0.0
@@ -187,7 +187,7 @@ def headline_totals(spends):
 
 
 def headline_sentence(headlines, total):
-    """The headline figures in words, as in "Left $1,470, Centre and unmapped $1,715, Right $980, total $4,165"."""
+    """The headline figures in words, as in "Left $1,470, Centre $1,715, Right $980, total $4,165"."""
     parts = []
     for headline in headlines:
         parts.append(f'{headline["label"]} {format_money(headline["amount"])}')

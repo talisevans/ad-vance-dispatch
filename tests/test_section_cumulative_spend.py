@@ -124,7 +124,7 @@ def test_no_footer_line_when_the_template_already_excludes_government(gold_conne
 def test_top_three_with_other_and_unmapped(gold_connection, reference):
     """
     Top 3 with merges resolved: Labor $8,370, Liberal $5,580 (with aff_lib_old),
-    Climate 200 $1,800, Other (IPA + Greens) $2,090, Unmapped $1,040. Highest first.
+    Teals $1,800, Other (IPA + Greens) $2,090, Unmapped $1,040. Highest first.
     """
     context = make_section_context(gold_connection, reference)
     result = build_section(cumulative_spend, context, {'top_affiliations': 3})
@@ -133,13 +133,13 @@ def test_top_three_with_other_and_unmapped(gold_connection, reference):
         ('Labor', 8370.0),
         ('Liberal', 5580.0),
         ('Other', 2090.0),
-        ('Climate 200', 1800.0),
+        ('Teals', 1800.0),
         ('Unmapped', 1040.0),
     ]
     colours = column_colours(result, 'By affiliation')
     assert colours['Other'] == OTHER_COLOUR
     assert colours['Unmapped'] == UNMAPPED_COLOUR
-    assert colours['Climate 200'] == '#0f766e'
+    assert colours['Teals'] == '#1c768c'
 
 
 def test_default_top_eight_needs_no_other(gold_connection, reference):
@@ -150,7 +150,7 @@ def test_default_top_eight_needs_no_other(gold_connection, reference):
     assert column_rows(result, 'By affiliation') == [
         ('Labor', 8370.0),
         ('Liberal', 5580.0),
-        ('Climate 200', 1800.0),
+        ('Teals', 1800.0),
         ('Institute of Public Affairs', 1240.0),
         ('Unmapped', 1040.0),
         ('Greens', 850.0),
@@ -179,12 +179,12 @@ def test_two_half_width_charts(gold_connection, reference):
 
 
 def test_top_two_spenders_are_named_on_each_chart():
-    """With top 3, Other ($2,090) outranks Climate 200 but is never named; Labor and Liberal are."""
+    """With top 3, Other ($2,090) outranks Teals but is never named; Labor and Liberal are."""
     lines = [
         CumulativeLine(name='Labor', colour='#dc2626', values=[0.0, 8370.0]),
         CumulativeLine(name='Other', colour=OTHER_COLOUR, values=[0.0, 2090.0]),
         CumulativeLine(name='Liberal', colour='#1e3a8a', values=[0.0, 5580.0]),
-        CumulativeLine(name='Climate 200', colour='#0f766e', values=[0.0, 1800.0]),
+        CumulativeLine(name='Teals', colour='#1c768c', values=[0.0, 1800.0]),
         CumulativeLine(name='Unmapped', colour=UNMAPPED_COLOUR, values=[0.0, 1040.0]),
     ]
     assert labelled_line_names(lines) == ['Labor', 'Liberal']
