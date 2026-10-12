@@ -58,7 +58,7 @@ GAUGE_IMAGE_NAME = 'gauge'
 
 # The three headline groups, and the colour each headline figure is written in
 LEFT_LABEL = 'Left'
-CENTRE_LABEL = 'Centre and unmapped'
+CENTRE_LABEL = 'Centre'
 RIGHT_LABEL = 'Right'
 LEFT_HEADLINE_COLOUR = '#b3001b'
 CENTRE_HEADLINE_COLOUR = '#555555'

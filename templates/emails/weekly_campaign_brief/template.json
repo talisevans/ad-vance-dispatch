@@ -29,7 +29,7 @@
           { "label": "Labor",   "affiliation_ids": ["aff_labor"] },
           { "label": "Liberal", "affiliation_ids": ["aff_liberal"] },
           { "label": "Greens",  "affiliation_ids": ["aff_greens"] },
-          { "label": "Teals",   "affiliation_ids": ["aff_climate_200"] }
+          { "label": "Teals",   "affiliation_ids": ["aff_community_independents"] }
         ] } },
     { "id": "top_seats", "type": "top_seats",
       "params": { "limit": 10, "windows": [7, 28], "rank_by_window": 7 },
